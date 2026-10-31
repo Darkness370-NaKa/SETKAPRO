@@ -5,13 +5,16 @@ import BracketBuilder from "./BracketBuilder";
 
 type ImportAthlete = {last_name:string;first_name:string;gender:string|null;birth_date:string|null;city:string|null;country:string|null};
 function parseCsv(text:string):ImportAthlete[]{
- const firstLine=text.replace(/^\uFEFF/,"").split(/\r?\n/,1)[0]||"";
+ const firstLine=text.replace(/^\uFEFF/,"").split(/\r?
+/,1)[0]||"";
  const delimiter=(firstLine.match(/;/g)||[]).length>(firstLine.match(/,/g)||[]).length?";":(firstLine.includes("\t")?"\t":",");
  const records:string[][]=[];let row:string[]=[],cell="",quoted=false;
  for(let i=0;i<text.length;i++){const ch=text[i];
   if(ch==='"'){if(quoted&&text[i+1]==='"'){cell+='"';i++;}else quoted=!quoted;}
   else if(ch===delimiter&&!quoted){row.push(cell);cell="";}
-  else if((ch==="\n"||ch==="\r")&&!quoted){if(ch==="\r"&&text[i+1]==="\n")i++;row.push(cell);if(row.some(v=>v.trim()))records.push(row);row=[];cell="";}
+  else if((ch==="
+"||ch==="\r")&&!quoted){if(ch==="\r"&&text[i+1]==="
+")i++;row.push(cell);if(row.some(v=>v.trim()))records.push(row);row=[];cell="";}
   else cell+=ch;
  }
  row.push(cell);if(row.some(v=>v.trim()))records.push(row);
@@ -70,7 +73,10 @@ export default function Management({client,module,canEdit,onMessage}:{client:any
  const [busy,setBusy]=useState(false);
  const [showForm,setShowForm]=useState(false);
  const [editingId,setEditingId]=useState<string|null>(null);
- const [formKey,setFormKey]=useState(0);\n const [importRows,setImportRows]=useState<ImportAthlete[]>([]);\n const [importName,setImportName]=useState("");\n const [importBusy,setImportBusy]=useState(false);
+ const [formKey,setFormKey]=useState(0);
+ const [importRows,setImportRows]=useState<ImportAthlete[]>([]);
+ const [importName,setImportName]=useState("");
+ const [importBusy,setImportBusy]=useState(false);
 
  async function reload(){
   setBusy(true);
@@ -163,7 +169,8 @@ export default function Management({client,module,canEdit,onMessage}:{client:any
   }catch(error){onMessage("Импорт остановлен: "+((error as any)?.message||"ошибка базы данных"));}
   finally{setImportBusy(false);}
  }
-\n async function remove(id:string){
+
+ async function remove(id:string){
   if(!confirm("Удалить запись?"))return;
   const {error}=await client.from(cfg.table).delete().eq("id",id);
   if(error)onMessage("Не удалось удалить: "+error.message);
