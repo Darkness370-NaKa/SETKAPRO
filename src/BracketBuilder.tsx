@@ -116,7 +116,6 @@ export default function BracketBuilder({client,canEdit,onMessage}:{client:any;ca
     link(wb[wbRounds][1],grand,"athlete_a_id");
     link(lb[lbRounds][1],grand,"athlete_b_id");
     // The reset final is activated only if the losers-bracket champion wins the grand final.
-    grand.reset_match_id=reset.id;
     rows.push(grand,reset);
    }
   }
@@ -158,7 +157,8 @@ export default function BracketBuilder({client,canEdit,onMessage}:{client:any;ca
   setBusy(false);
  }
  const formatForBracket=brackets.find(b=>b.id===selectedBracket)?.format||format;
- const rounds=useMemo(()=>Array.from(new Set(matches.map(m=>m.round_no))).sort((a,b)=>a-b),[matches]);
+ const visibleMatches=matches.filter(m=>m.athlete_a_id||m.athlete_b_id||m.status==="completed");
+ const rounds=useMemo(()=>Array.from(new Set(visibleMatches.map(m=>m.round_no))).sort((a,b)=>a-b),[visibleMatches]);
  const roundTitle=(round:number)=>{const sample=matches.find(m=>m.round_no===round);if(formatForBracket==="rr")return "Матчи";if(sample?.bracket_side==="losers")return "Утешительная сетка · раунд "+(round-100);if(sample?.bracket_side==="grand_final")return "Большой финал";if(sample?.bracket_side==="reset_final")return "Дополнительный финал";if(sample?.bracket_side==="winners")return round===Math.max(...matches.filter(m=>m.bracket_side==="winners").map(m=>m.round_no))?"Финал победителей":"Основная сетка · раунд "+round;return "Раунд "+round};
  const athleteName=(id:string|null)=>id?(athleteMap.get(id)?athleteMap.get(id)!.last_name+" "+athleteMap.get(id)!.first_name:"Спортсмен"): "Ожидает соперника";
  return <section className="panel">
@@ -174,7 +174,7 @@ export default function BracketBuilder({client,canEdit,onMessage}:{client:any;ca
   </div>}
   <div className="section-title" style={{marginTop:24}}><div><h2>Сохранённые сетки</h2><p>Откройте сетку, чтобы вносить результаты и продвигать победителей.</p></div></div>
   <div className="application-list">{brackets.map(b=><button type="button" className={selectedBracket===b.id?"application-row selected":"application-row"} key={b.id} onClick={()=>void openBracket(b.id)}><div className="app-main"><b>{b.name}</b><span>{categories.find(c=>c.id===b.category_id)?.name||"Категория"} · {b.format==="rr"?"Круговая система":b.format==="double"?"Двойное выбывание":"Олимпийская"}</span></div><Trophy size={18}/></button>)}{!brackets.length&&<div className="empty"><b>Сеток пока нет</b><p>Создайте первую сетку выше.</p></div>}</div>
-  {selectedBracket&&<div className="bracket-rounds">{rounds.map(round=><section className="bracket-round" key={round}><h3>{roundTitle(round)}</h3>{matches.filter(m=>m.round_no===round).map(match=><MatchCard key={match.id} match={match} athleteName={athleteName} canEdit={canEdit&&match.athlete_a_id!==null&&match.athlete_b_id!==null} busy={busy} onSave={saveWinner}/>)}</section>)}</div>}
+  {selectedBracket&&<div className="bracket-rounds">{rounds.map(round=><section className="bracket-round" key={round}><h3>{roundTitle(round)}</h3>{visibleMatches.filter(m=>m.round_no===round).map(match=><MatchCard key={match.id} match={match} athleteName={athleteName} canEdit={canEdit&&match.athlete_a_id!==null&&match.athlete_b_id!==null} busy={busy} onSave={saveWinner}/>)}</section>)}</div>}
  </section>;
 }
 function MatchCard({match,athleteName,canEdit,busy,onSave}:{match:Match;athleteName:(id:string|null)=>string;canEdit:boolean;busy:boolean;onSave:(m:Match,w:string,a:string,b:string)=>void}){
