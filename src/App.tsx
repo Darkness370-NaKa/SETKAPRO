@@ -92,14 +92,14 @@ export default function App() {
       starts_at: starts ? new Date(starts).toISOString() : null,
       ends_at: ends ? new Date(ends).toISOString() : null,
       status: String(fd.get("status") || "draft"),
-      created_by: user.id
     };
     if (!payload.name) { setMessage("Укажите название турнира."); return; }
     setBusy(true); setMessage("");
-    const { error } = await supabase.from("tournaments").insert(payload);
+    const { error } = editingTournamentId ? await supabase.from("tournaments").update(payload).eq("id", editingTournamentId) : await supabase.from("tournaments").insert({ ...payload, created_by: user.id });
     if (error) setMessage("Не удалось создать турнир: " + error.message);
     else {
-      setMessage("Турнир создан как черновик. После проверки его можно опубликовать.");
+      setMessage(editingTournamentId ? "Изменения турнира сохранены." : "Турнир создан.");
+      setEditingTournamentId(null);
       setShowTournamentForm(false);
       (e.currentTarget as HTMLFormElement).reset();
       await loadUserData();
@@ -196,13 +196,13 @@ export default function App() {
             <div className="section-title"><div><h2>Турниры</h2><p>Создавайте соревнования и управляйте их публикацией.</p></div>
               {["SUPER_ADMIN","ADMIN","ORGANIZER"].includes(role) && <div className="row-actions"><button className="secondary" onClick={() => void exportTournamentData()} disabled={busy}><Download size={15}/> Резервная копия</button><button className="primary" onClick={() => setShowTournamentForm(v => !v)}><Plus size={16}/> Создать турнир</button></div>}
             </div>
-            {showTournamentForm && ["SUPER_ADMIN","ADMIN","ORGANIZER"].includes(role) && <form className="form-grid" onSubmit={createTournament}>
-              <label className="full">Название турнира<input name="name" required maxLength={180} placeholder="Например, Кубок города по армрестлингу"/></label>
-              <label className="full">Место проведения<input name="location" maxLength={180} placeholder="Город, спортивный комплекс"/></label>
+            {showTournamentForm && ["SUPER_ADMIN","ADMIN","ORGANIZER"].includes(role) && <form className="form-grid" key={editingTournamentId || "new"} onSubmit={createTournament}>
+              <label className="full">Название турнира<input name="name" required maxLength={180} defaultValue={tournaments.find(t => t.id === editingTournamentId)?.name || ""} placeholder="Например, Кубок города по армрестлингу"/></label>
+              <label className="full">Место проведения<input name="location" maxLength={180} defaultValue={tournaments.find(t => t.id === editingTournamentId)?.location || ""} placeholder="Город, спортивный комплекс"/></label>
               <label>Начало турнира<input name="starts_at" type="datetime-local"/></label>
               <label>Окончание турнира<input name="ends_at" type="datetime-local"/></label>
               <label>Статус при создании<select name="status"><option value="draft">Черновик</option><option value="published">Опубликован — открыт для заявок</option></select></label>
-              <div className="full form-actions"><button className="primary" disabled={busy}>{busy ? "Создание…" : "Сохранить черновик"}</button><button type="button" className="secondary" onClick={() => setShowTournamentForm(false)}>Отмена</button></div>
+              <div className="full form-actions"><button className="primary" disabled={busy}>{busy ? "Сохранение…" : editingTournamentId ? "Сохранить изменения" : "Создать турнир"}</button><button type="button" className="secondary" onClick={() => {setShowTournamentForm(false);setEditingTournamentId(null);}}>Отмена</button></div>
               <p className="full">Выберите «Черновик» для подготовки или «Опубликован», чтобы сразу открыть турнир в каталоге для заявок.</p>
             </form>}
           </section>
