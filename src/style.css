@@ -18,3 +18,12 @@
 
 
 .bracket-editor-page{min-height:calc(100vh - 32px);width:100%;max-width:none;margin:0;padding:22px 28px;background:linear-gradient(145deg,#171d24,#10151a);border:1px solid var(--line);border-radius:12px;overflow:hidden}.editor-topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px;padding-bottom:14px;border-bottom:1px solid var(--line)}.editor-topbar>span{font-size:10px;letter-spacing:1.5px;color:var(--muted)}.bracket-editor-page .bracket-viewport{min-height:55vh;padding:20px 8px}.bracket-editor-page .bracket-rounds{min-height:45vh}.bracket-editor-page .match-history-tools{justify-content:flex-start;flex-wrap:wrap;gap:6px}.bracket-editor-page .section-title{max-width:none}@media(max-width:760px){.bracket-editor-page{padding:15px 12px}.editor-topbar{align-items:flex-start;flex-direction:column}.bracket-editor-page .match-history-tools{justify-content:flex-start}}
+/* Manual bracket constructor */
+.manual-builder-tools{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0}
+.match-number-row{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.manual-match-fields{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0}
+.manual-match-fields label{display:flex;flex-direction:column;gap:5px;color:var(--muted);font-size:10px}
+.manual-match-fields select{min-width:0;padding:8px;font-size:11px;min-height:36px}
+.bracket-round{min-width:270px}
+.match-card{min-width:250px}
+@media(max-width:620px){.manual-match-fields{grid-template-columns:1fr}.bracket-round{min-width:245px}}
