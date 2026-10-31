@@ -185,8 +185,37 @@ export default function BracketBuilder({client,canEdit,onMessage,initialBracketI
   onMessage("Сетка создана. Можно проводить матчи и вносить результаты.");
   setBracketName("");setSelectedBracket(created.id);await reload();await openBracket(created.id);
  }
+ async function propagateMatchResult(match:Match,winnerId:string,loserId:string|null){
+  const updates:{table:string;id:string;slot:"athlete_a_id"|"athlete_b_id";value:string}[]=[];
+  if(match.next_match_id&&match.next_slot)updates.push({table:"matches",id:match.next_match_id,slot:match.next_slot,value:winnerId});
+  if(match.loser_next_match_id&&match.loser_next_slot&&loserId)updates.push({table:"matches",id:match.loser_next_match_id,slot:match.loser_next_slot,value:loserId});
+  for(const item of updates){
+   const {data,error}=await client.from(item.table).select("id,status,"+item.slot).eq("id",item.id).maybeSingle();
+   if(error)return "Не удалось проверить следующий матч: "+error.message;
+   if(!data)return "Следующий матч не найден.";
+   if(data.status==="completed"&&data[item.slot]!==item.value)return "Следующий матч уже завершён и содержит другого участника. Переход не изменён.";
+   if(data[item.slot]&&data[item.slot]!==item.value)return "В целевом слоте уже назначен другой спортсмен. Переход не изменён.";
+   const {error:writeError}=await client.from(item.table).update({[item.slot]:item.value}).eq("id",item.id);
+   if(writeError)return "Не удалось перенести участника: "+writeError.message;
+  }
+  if(match.bracket_side==="grand_final"){
+   const {data:resetRows,error}=await client.from("matches").select("*").eq("bracket_id",selectedBracket).eq("bracket_side","reset_final").limit(1);
+   if(error)return "Не удалось проверить дополнительный финал: "+error.message;
+   const reset=resetRows?.[0];
+   if(reset){
+    if(winnerId===match.athlete_b_id){
+     const {error:resetError}=await client.from("matches").update({athlete_a_id:match.athlete_a_id,athlete_b_id:match.athlete_b_id,status:"pending",winner_id:null,score_a:null,score_b:null,finish_reason:null}).eq("id",reset.id);
+     if(resetError)return "Не удалось открыть дополнительный финал: "+resetError.message;
+    }else if(reset.status!=="completed"){
+     const {error:resetError}=await client.from("matches").update({athlete_a_id:null,athlete_b_id:null,status:"pending",winner_id:null,score_a:null,score_b:null,finish_reason:null}).eq("id",reset.id);
+     if(resetError)return "Не удалось сбросить дополнительный финал: "+resetError.message;
+    }
+   }
+  }
+  return null;
+ }
  async function recordViolation(match:Match,side:"a"|"b",kind:"foul"|"remark"){
-  if(!canEdit||match.status==="completed"||!match.athlete_a_id||!match.athlete_b_id)return;
+  if(!canEdit||match.status==="completed"||!match.athlete_a_id||!match.athlete_b_id||busy)return;
   const foulKey=side==="a"?"fouls_a":"fouls_b";
   const remarkKey=side==="a"?"remarks_a":"remarks_b";
   const currentFouls=Number(match[foulKey]||0);
@@ -196,26 +225,17 @@ export default function BracketBuilder({client,canEdit,onMessage,initialBracketI
   const nextFouls=currentFouls+(addsFoul?1:0);
   const updates:any={[remarkKey]:nextRemarks,[foulKey]:nextFouls};
   let winnerId:string|null=null;
-  if(nextFouls>=2){winnerId=side==="a"?match.athlete_b_id:match.athlete_a_id;updates.winner_id=winnerId;updates.status="completed";updates.finish_reason="fouls";}
+  if(nextFouls>=2){winnerId=side==="a"?match.athlete_b_id:match.athlete_a_id;updates.winner_id=winnerId;updates.status="completed";updates.finish_reason="fouls";updates.score_a=null;updates.score_b=null;}
   setBusy(true);
-  const {error}=await client.from("matches").update(updates).eq("id",match.id);
+  const {error}=await client.from("matches").update(updates).eq("id",match.id).neq("status","completed");
   if(error){onMessage("Не удалось записать нарушение: "+error.message);setBusy(false);return}
   if(winnerId){
    const loserId=side==="a"?match.athlete_a_id:match.athlete_b_id;
-   if(match.next_match_id&&match.next_slot)await client.from("matches").update({[match.next_slot]:winnerId}).eq("id",match.next_match_id);
-   if(match.loser_next_match_id&&match.loser_next_slot)await client.from("matches").update({[match.loser_next_slot]:loserId}).eq("id",match.loser_next_match_id);
-   if(match.bracket_side==="grand_final"&&winnerId===match.athlete_b_id){
-    const {data}=await client.from("matches").select("*").eq("bracket_id",selectedBracket).eq("bracket_side","reset_final").limit(1);
-    if(data?.[0])await client.from("matches").update({athlete_a_id:match.athlete_a_id,athlete_b_id:match.athlete_b_id,status:"pending"}).eq("id",data[0].id);
-   }
-   onMessage("Второй фол. Победа присуждена сопернику.");
+   const propagationError=await propagateMatchResult(match,winnerId,loserId);
+   if(propagationError)onMessage("Нарушение записано, но переход требует внимания: "+propagationError);
+   else onMessage("Второй фол. Победа присуждена сопернику.");
   }else onMessage(kind==="remark"?(addsFoul?"Два замечания преобразованы в один фол.":"Замечание записано."):"Фол записан.");
-  const [{data,error:loadError},{data:events}]=await Promise.all([
-   client.from("matches").select("*").eq("bracket_id",selectedBracket).order("round_no").order("match_no"),
-   client.from("match_change_log").select("id,match_id,action,old_data,new_data,changed_at,changed_by").eq("bracket_id",selectedBracket).order("changed_at",{ascending:false}).limit(100)
-  ]);
-  if(loadError)onMessage(loadError.message);else setMatches(data||[]);
-  setMatchEvents(events||[]);
+  await openBracket(selectedBracket);
   setBusy(false);
  }
  async function addManualMatch(roundNo?:number){
