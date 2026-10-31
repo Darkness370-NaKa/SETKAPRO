@@ -224,10 +224,12 @@ export default function BracketBuilder({client,canEdit,onMessage,initialBracketI
  }
  async function moveManualMatch(match:Match,targetRound:number,targetIndex:number){
   if(!canEdit||!selectedBracket)return;
+  const sourceRound=match.round_no;
   const target=matches.filter(m=>m.round_no===targetRound&&m.id!==match.id).sort((a,b)=>a.match_no-b.match_no);
   target.splice(Math.max(0,targetIndex),0,match);
+  const source=sourceRound===targetRound?[]:matches.filter(m=>m.round_no===sourceRound&&m.id!==match.id).sort((a,b)=>a.match_no-b.match_no);
   setBusy(true);
-  const results=await Promise.all(target.map((m,i)=>client.from("matches").update({round_no:targetRound,match_no:i+1}).eq("id",m.id)));
+  const results=await Promise.all([...target.map((m,i)=>client.from("matches").update({round_no:targetRound,match_no:i+1}).eq("id",m.id)),...source.map((m,i)=>client.from("matches").update({match_no:i+1}).eq("id",m.id))]);
   const error=results.find(x=>x.error)?.error;
   if(error)onMessage("Не удалось переместить блок: "+error.message);else onMessage("Блок перемещён.");
   await openBracket(selectedBracket);setBusy(false);
