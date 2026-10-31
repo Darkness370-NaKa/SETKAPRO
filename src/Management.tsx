@@ -130,7 +130,21 @@ export default function Management({client,module,canEdit,onMessage}:{client:any
    const raw=String(fd.get(f.name)||"").trim();
    value[f.name]=raw?(f.type==="number"?Number(raw):raw):null;
   }
-  if(module==="weighin")value.operator_id=(await client.auth.getUser()).data.user?.id;
+  if(module==="categories"){
+   const min=value.min_weight===null?null:Number(value.min_weight);
+   const max=value.max_weight===null?null:Number(value.max_weight);
+   if(min!==null&&max!==null&&min>max){onMessage("Минимальный вес не может быть больше максимального.");return}
+  }
+  if(module==="weighin"){
+   const weight=Number(value.weight);
+   if(!Number.isFinite(weight)||weight<20||weight>250){onMessage("Вес должен быть в диапазоне от 20 до 250 кг.");return}
+   value.operator_id=(await client.auth.getUser()).data.user?.id;
+  }
+  if(module==="registration"){
+   const {data:duplicate,error:duplicateError}=await client.from("registrations").select("id").eq("tournament_id",value.tournament_id).eq("athlete_id",value.athlete_id).neq("id",editingId||"00000000-0000-0000-0000-000000000000").limit(1);
+   if(duplicateError){onMessage("Не удалось проверить повторную регистрацию: "+duplicateError.message);return}
+   if(duplicate?.length){onMessage("Этот спортсмен уже зарегистрирован на выбранный турнир.");return}
+  }
   setBusy(true);
   const result=editingId
    ? await client.from(cfg.table).update(value).eq("id",editingId)
