@@ -216,8 +216,17 @@ export default function BracketBuilder({client,canEdit,onMessage,initialBracketI
   await addManualMatch(next);
  }
  async function editMatchParticipants(match:Match,aId:string,bId:string){
-  if(!canEdit||!selectedBracket||aId===bId&&aId)return;
+  if(!canEdit||!selectedBracket)return;
+  if(aId&&aId===bId){onMessage("Один спортсмен не может занимать оба места в матче.");return}
+  const duplicate=matches.find(m=>m.id!==match.id&&[m.athlete_a_id,m.athlete_b_id].some(id=>id&&(id===aId||id===bId)));
+  if(duplicate){onMessage("Этот спортсмен уже назначен в другой блок этой сетки. Сначала освободите его там.");return}
+  if(match.status==="completed"&&!confirm("Матч уже завершён. Изменение участников сбросит его результат, но не будет автоматически пересчитывать последующие матчи. Продолжить?"))return;
   setBusy(true);
+  if(match.status==="completed"){
+   const winner=match.winner_id;const loser=winner?(winner===match.athlete_a_id?match.athlete_b_id:match.athlete_a_id):null;
+   if(match.next_match_id&&match.next_slot&&winner)await client.from("matches").update({[match.next_slot]:null}).eq("id",match.next_match_id).eq(match.next_slot,winner);
+   if(match.loser_next_match_id&&match.loser_next_slot&&loser)await client.from("matches").update({[match.loser_next_slot]:null}).eq("id",match.loser_next_match_id).eq(match.loser_next_slot,loser);
+  }
   const {error}=await client.from("matches").update({athlete_a_id:aId||null,athlete_b_id:bId||null,score_a:null,score_b:null,winner_id:null,status:"pending",finish_reason:null,fouls_a:0,fouls_b:0,remarks_a:0,remarks_b:0}).eq("id",match.id);
   if(error)onMessage("Не удалось изменить участников матча: "+error.message);else onMessage("Участники блока обновлены.");
   await openBracket(selectedBracket);setBusy(false);
@@ -237,6 +246,11 @@ export default function BracketBuilder({client,canEdit,onMessage,initialBracketI
  async function saveMatchLinks(match:Match,nextId:string,nextSlot:"athlete_a_id"|"athlete_b_id",loserId:string,loserSlot:"athlete_a_id"|"athlete_b_id"){
   if(!canEdit||!selectedBracket)return;
   if(nextId===match.id||loserId===match.id){onMessage("Матч не может ссылаться сам на себя.");return}
+  if(nextId&&nextId===loserId&&nextSlot===loserSlot){onMessage("Победитель и проигравший не могут попасть в один и тот же слот следующего матча.");return}
+  const graph=new Map(matches.map(m=>[m.id,[m.next_match_id,m.loser_next_match_id].filter(Boolean) as string[]]));
+  graph.set(match.id,[nextId,loserId].filter(Boolean));
+  const reaches=(from:string,target:string,seen=new Set<string>()):boolean=>{if(from===target)return true;if(seen.has(from))return false;seen.add(from);return (graph.get(from)||[]).some(n=>reaches(n,target,seen))};
+  if((nextId&&reaches(nextId,match.id))||(loserId&&reaches(loserId,match.id))){onMessage("Такая связь создаст цикл переходов. Выберите матч дальше по сетке.");return}
   const {error}=await client.from("matches").update({next_match_id:nextId||null,next_slot:nextId?nextSlot:null,loser_next_match_id:loserId||null,loser_next_slot:loserId?loserSlot:null}).eq("id",match.id);
   if(error)onMessage("Не удалось сохранить связи: "+error.message);else onMessage("Связи матча сохранены.");
   await openBracket(selectedBracket);
