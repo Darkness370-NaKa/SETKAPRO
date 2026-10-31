@@ -130,6 +130,13 @@ export default function BracketBuilder({client,canEdit,onMessage,initialBracketI
    }
   }
  }
+ async function insertMatchBatches(rows:any[]){
+  for(let i=0;i<rows.length;i+=500){
+   const {error}=await client.from("matches").insert(rows.slice(i,i+500));
+   if(error)return error;
+  }
+  return null;
+ }
  async function propagateInitialByes(rows:any[]){
   for(const match of rows.filter(row=>row.status==="bye"&&row.winner_id&&row.next_match_id&&row.next_slot)){
    const {data:target,error:readError}=await client.from("matches").select("id,"+match.next_slot).eq("id",match.next_match_id).maybeSingle();
@@ -159,7 +166,7 @@ export default function BracketBuilder({client,canEdit,onMessage,initialBracketI
   if(error||!copy){onMessage("Не удалось создать копию: "+(error?.message||"ошибка"));setBusy(false);return}
   const idMap=new Map(sourceMatches.map((m:any)=>[m.id,crypto.randomUUID()]));
   const rows=sourceMatches.map((m:any)=>({id:idMap.get(m.id),bracket_id:copy.id,round_no:m.round_no,match_no:m.match_no,bracket_side:m.bracket_side,athlete_a_id:m.athlete_a_id,athlete_b_id:m.athlete_b_id,score_a:null,score_b:null,status:m.status==="bye"&&Boolean(m.athlete_a_id)!==Boolean(m.athlete_b_id)?"bye":"pending",winner_id:m.status==="bye"?(m.athlete_a_id||m.athlete_b_id||null):null,fouls_a:0,fouls_b:0,remarks_a:0,remarks_b:0,finish_reason:null,next_match_id:m.next_match_id?idMap.get(m.next_match_id)||null:null,next_slot:m.next_slot,loser_next_match_id:m.loser_next_match_id?idMap.get(m.loser_next_match_id)||null:null,loser_next_slot:m.loser_next_slot}));
-  const {error:insertError}=await client.from("matches").insert(rows);
+  const insertError=await insertMatchBatches(rows);
   if(insertError){await client.from("brackets").delete().eq("id",copy.id);onMessage("Не удалось скопировать матчи: "+insertError.message);setBusy(false);return}
   const byeError=await propagateInitialByes(rows);
   if(byeError){onMessage(byeError);setBusy(false);return}
@@ -249,7 +256,7 @@ export default function BracketBuilder({client,canEdit,onMessage,initialBracketI
     rows.push(grand,reset);
    }
   }
-  const {error:matchError}=await client.from("matches").insert(rows);
+  const matchError=await insertMatchBatches(rows);
   if(matchError){await client.from("brackets").delete().eq("id",created.id);onMessage("Не удалось построить матчи: "+matchError.message+" (если это двойное выбывание, выполните миграцию 005).");setBusy(false);return}
   // Propagate first-round byes before resolving dependent losers-bracket passes.
   if(format!=="rr"){
