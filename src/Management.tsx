@@ -5,18 +5,18 @@ import BracketBuilder from "./BracketBuilder";
 
 type ImportAthlete = {last_name:string;first_name:string;gender:string|null;birth_date:string|null;city:string|null;country:string|null};
 function parseCsv(text:string):ImportAthlete[]{
- const firstLine=text.replace(/^\\uFEFF/,"").split(/\\r?\\n/,1)[0]||"";
- const delimiter=(firstLine.match(/;/g)||[]).length>(firstLine.match(/,/g)||[]).length?";":(firstLine.includes("\\t")?"\\t":",");
+ const firstLine=text.replace(/^\uFEFF/,"").split(/\r?\n/,1)[0]||"";
+ const delimiter=(firstLine.match(/;/g)||[]).length>(firstLine.match(/,/g)||[]).length?";":(firstLine.includes("\t")?"\t":",");
  const records:string[][]=[];let row:string[]=[],cell="",quoted=false;
  for(let i=0;i<text.length;i++){const ch=text[i];
   if(ch==='"'){if(quoted&&text[i+1]==='"'){cell+='"';i++;}else quoted=!quoted;}
   else if(ch===delimiter&&!quoted){row.push(cell);cell="";}
-  else if((ch==="\\n"||ch==="\\r")&&!quoted){if(ch==="\\r"&&text[i+1]==="\\n")i++;row.push(cell);if(row.some(v=>v.trim()))records.push(row);row=[];cell="";}
+  else if((ch==="\n"||ch==="\r")&&!quoted){if(ch==="\r"&&text[i+1]==="\n")i++;row.push(cell);if(row.some(v=>v.trim()))records.push(row);row=[];cell="";}
   else cell+=ch;
  }
  row.push(cell);if(row.some(v=>v.trim()))records.push(row);
  if(records.length<2)throw new Error("В файле нет строк с участниками.");
- const norm=(s:string)=>s.trim().toLowerCase().replace(/ё/g,"е").replace(/[\\s_-]+/g,"");
+ const norm=(s:string)=>s.trim().toLowerCase().replace(/ё/g,"е").replace(/[\s_-]+/g,"");
  const aliases:Record<string,string>={lastname:"last_name",фамилия:"last_name",surname:"last_name",firstname:"first_name",имя:"first_name",name:"first_name",gender:"gender",пол:"gender",birthdate:"birth_date",датарождения:"birth_date",датарожд:"birth_date",city:"city",город:"city",country:"country",страна:"country"};
  const headers=records[0].map(v=>aliases[norm(v)]||"");
  if(!headers.includes("last_name")||!headers.includes("first_name"))throw new Error("Нужны столбцы «Фамилия» и «Имя» (или last_name и first_name).");
@@ -26,11 +26,11 @@ function parseCsv(text:string):ImportAthlete[]{
   const gender=genderRaw?(/^(м|муж|male|мужской)$/.test(genderRaw)?"male":/^(ж|жен|female|женский)$/.test(genderRaw)?"female":/^(other|открытая|откр)$/.test(genderRaw)?"other":null):null;
   const date=String(item.birth_date||"").trim();
   let birth_date:string|null=null;
-  if(date){const m=date.match(/^(\\d{1,2})[.\\/](\\d{1,2})[.\\/](\\d{4})$/);birth_date=m?m[3]+"-"+m[2].padStart(2,"0")+"-"+m[1].padStart(2,"0"):date;}
+  if(date){const m=date.match(/^(\d{1,2})[.\/](\d{1,2})[.\/](\d{4})$/);birth_date=m?m[3]+"-"+m[2].padStart(2,"0")+"-"+m[1].padStart(2,"0"):date;}
   return {last_name:String(item.last_name||"").trim(),first_name:String(item.first_name||"").trim(),gender,birth_date,city:String(item.city||"").trim()||null,country:String(item.country||"").trim()||null};
  }).filter(a=>a.last_name&&a.first_name);
 }
-\ntype ModuleKey = "athletes" | "clubs" | "registration" | "weighin" | "categories" | "brackets";
+type ModuleKey = "athletes" | "clubs" | "registration" | "weighin" | "categories" | "brackets";
 type Option = { value:string; label:string };
 type Field = { name:string; label:string; type?:string; required?:boolean; options?:Option[]; relation?:string };
 type ModuleConfig = { title:string; table:string; fields:Field[]; columns:{key:string;label:string}[] };
@@ -160,7 +160,7 @@ export default function Management({client,module,canEdit,onMessage}:{client:any
    }
    onMessage("Импорт завершён: добавлено "+unique.length+", пропущено дублей: "+duplicates+".");
    setImportRows([]);setImportName("");await reload();
-  }catch(error){onMessage("Импорт остановлен: "+(error as any)?.message||"ошибка базы данных");}
+  }catch(error){onMessage("Импорт остановлен: "+((error as any)?.message||"ошибка базы данных"));}
   finally{setImportBusy(false);}
  }
 \n async function remove(id:string){
