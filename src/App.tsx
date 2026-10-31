@@ -89,7 +89,7 @@ export default function App() {
       location: String(fd.get("location") || "").trim() || null,
       starts_at: starts ? new Date(starts).toISOString() : null,
       ends_at: ends ? new Date(ends).toISOString() : null,
-      status: "draft",
+      status: String(fd.get("status") || "draft"),
       created_by: user.id
     };
     if (!payload.name) { setMessage("Укажите название турнира."); return; }
@@ -187,8 +187,9 @@ export default function App() {
               <label className="full">Место проведения<input name="location" maxLength={180} placeholder="Город, спортивный комплекс"/></label>
               <label>Начало турнира<input name="starts_at" type="datetime-local"/></label>
               <label>Окончание турнира<input name="ends_at" type="datetime-local"/></label>
+              <label>Статус при создании<select name="status"><option value="draft">Черновик</option><option value="published">Опубликован — открыт для заявок</option></select></label>
               <div className="full form-actions"><button className="primary" disabled={busy}>{busy ? "Создание…" : "Сохранить черновик"}</button><button type="button" className="secondary" onClick={() => setShowTournamentForm(false)}>Отмена</button></div>
-              <p className="full">Новый турнир будет сохранён как черновик и пока не появится в открытом каталоге участников.</p>
+              <p className="full">Выберите «Черновик» для подготовки или «Опубликован», чтобы сразу открыть турнир в каталоге для заявок.</p>
             </form>}
           </section>
           <section className="cards">
