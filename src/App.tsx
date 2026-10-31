@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { Activity, ArrowRight, CheckCircle2, ClipboardList, LogOut, ShieldCheck, Trophy, UserRound, Users } from "lucide-react";
+import { Activity, ArrowRight, CheckCircle2, ClipboardList, LogOut, Plus, ShieldCheck, Trophy, UserRound, Users } from "lucide-react";
 import { isSupabaseConfigured, supabase } from "./supabase";
 import type { AppRole, ParticipationApplication, Tournament } from "./types";
 import Management from "./Management";
@@ -24,6 +24,7 @@ export default function App() {
   const [selectedTournament, setSelectedTournament] = useState("");
   const [busy, setBusy] = useState(false);
   const [managedUsers, setManagedUsers] = useState<ManagedUser[]>([]);
+  const [showTournamentForm, setShowTournamentForm] = useState(false);
 
   useEffect(() => {
     if (!supabase) { setLoading(false); return; }
@@ -41,7 +42,7 @@ export default function App() {
     if (!supabase || !user) return;
     const [{ data: roleData }, { data: tournamentData }, { data: appData }] = await Promise.all([
       supabase.from("user_roles").select("role").eq("user_id", user.id),
-      supabase.from("tournaments").select("id,name,location,starts_at,status").in("status", ["published", "registration_closed"]).order("starts_at"),
+      supabase.from("tournaments").select("id,name,location,starts_at,status").order("starts_at"),
       supabase.from("participation_applications").select("*,tournaments(name)").order("created_at", { ascending: false })
     ]);
     const roles = (roleData ?? []).map(x => x.role as AppRole);
@@ -74,6 +75,33 @@ export default function App() {
       ({ error } = await supabase.auth.signInWithPassword({ email, password }));
     }
     if (error) setMessage(error.message);
+    setBusy(false);
+  }
+
+  async function createTournament(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!supabase || !user || !["SUPER_ADMIN","ADMIN","ORGANIZER"].includes(role)) return;
+    const fd = new FormData(e.currentTarget);
+    const starts = String(fd.get("starts_at") || "");
+    const ends = String(fd.get("ends_at") || "");
+    const payload = {
+      name: String(fd.get("name") || "").trim(),
+      location: String(fd.get("location") || "").trim() || null,
+      starts_at: starts ? new Date(starts).toISOString() : null,
+      ends_at: ends ? new Date(ends).toISOString() : null,
+      status: "draft",
+      created_by: user.id
+    };
+    if (!payload.name) { setMessage("Укажите название турнира."); return; }
+    setBusy(true); setMessage("");
+    const { error } = await supabase.from("tournaments").insert(payload);
+    if (error) setMessage("Не удалось создать турнир: " + error.message);
+    else {
+      setMessage("Турнир создан как черновик. После проверки его можно опубликовать.");
+      setShowTournamentForm(false);
+      (e.currentTarget as HTMLFormElement).reset();
+      await loadUserData();
+    }
     setBusy(false);
   }
 
@@ -149,9 +177,24 @@ export default function App() {
       <main className="main">
         <div className="page-head"><div><div className="eyebrow">ПАНЕЛЬ УПРАВЛЕНИЯ</div><h1>{nav.find(x => x.id === tab)?.label ?? "SETKA PRO"}</h1></div><div className="live-pill"><Activity size={14}/> SUPABASE CONNECTED</div></div>
         {message && <div className="notice" role="status">{message}<button onClick={() => setMessage("")}>×</button></div>}
-        {tab === "tournaments" && <section className="cards">
-          {tournaments.length ? tournaments.map(t => <article className="tournament-card" key={t.id}><div className="card-top"><span className="tag">ОТКРЫТАЯ ИНФОРМАЦИЯ</span><Trophy size={20}/></div><h2>{t.name}</h2><p>{t.location || "Место проведения уточняется"}</p><div className="card-bottom"><span>{t.starts_at ? new Date(t.starts_at).toLocaleDateString("ru-RU") : "Дата уточняется"}</span><button className="text-btn" onClick={() => {setSelectedTournament(t.id);setTab("apply");}}>Подать заявку <ArrowRight size={15}/></button></div></article>) : <Empty title="Пока нет опубликованных турниров" text="Когда организатор опубликует турнир, он появится здесь."/>}
-        </section>}
+        {tab === "tournaments" && <>
+          <section className="panel">
+            <div className="section-title"><div><h2>Турниры</h2><p>Создавайте соревнования и управляйте их публикацией.</p></div>
+              {["SUPER_ADMIN","ADMIN","ORGANIZER"].includes(role) && <button className="primary" onClick={() => setShowTournamentForm(v => !v)}><Plus size={16}/> Создать турнир</button>}
+            </div>
+            {showTournamentForm && ["SUPER_ADMIN","ADMIN","ORGANIZER"].includes(role) && <form className="form-grid" onSubmit={createTournament}>
+              <label className="full">Название турнира<input name="name" required maxLength={180} placeholder="Например, Кубок города по армрестлингу"/></label>
+              <label className="full">Место проведения<input name="location" maxLength={180} placeholder="Город, спортивный комплекс"/></label>
+              <label>Начало турнира<input name="starts_at" type="datetime-local"/></label>
+              <label>Окончание турнира<input name="ends_at" type="datetime-local"/></label>
+              <div className="full form-actions"><button className="primary" disabled={busy}>{busy ? "Создание…" : "Сохранить черновик"}</button><button type="button" className="secondary" onClick={() => setShowTournamentForm(false)}>Отмена</button></div>
+              <p className="full">Новый турнир будет сохранён как черновик и пока не появится в открытом каталоге участников.</p>
+            </form>}
+          </section>
+          <section className="cards">
+            {tournaments.length ? tournaments.map(t => <article className="tournament-card" key={t.id}><div className="card-top"><span className="tag">{t.status === "draft" ? "ЧЕРНОВИК" : t.status === "completed" ? "ЗАВЕРШЁН" : t.status === "registration_closed" ? "РЕГИСТРАЦИЯ ЗАКРЫТА" : "ОТКРЫТАЯ ИНФОРМАЦИЯ"}</span><Trophy size={20}/></div><h2>{t.name}</h2><p>{t.location || "Место проведения уточняется"}</p><div className="card-bottom"><span>{t.starts_at ? new Date(t.starts_at).toLocaleDateString("ru-RU") : "Дата уточняется"}</span>{t.status === "published" && <button className="text-btn" onClick={() => {setSelectedTournament(t.id);setTab("apply");}}>Подать заявку <ArrowRight size={15}/></button>}</div></article>) : <Empty title="Пока нет турниров" text={["SUPER_ADMIN","ADMIN","ORGANIZER"].includes(role) ? "Создайте первый турнир кнопкой выше." : "Когда организатор опубликует турнир, он появится здесь."}/>}
+          </section>
+        </>}
         {tab === "apply" && <section className="panel"><div className="section-title"><div><h2>Заявка на участие</h2><p>Заполните данные спортсмена. Заявка поступит организаторам на рассмотрение.</p></div><span className="tag amber">НОВАЯ ЗАЯВКА</span></div>
           <form className="form-grid" onSubmit={submitApplication}>
             <label className="full">Турнир<select name="tournament_id" required value={selectedTournament} onChange={e => setSelectedTournament(e.target.value)}><option value="">Выберите турнир</option>{tournaments.filter(t => t.status === "published").map(t => <option value={t.id} key={t.id}>{t.name}</option>)}</select></label>
