@@ -78,7 +78,7 @@ export default function Management({client,module,canEdit,onMessage}:{client:any
  async function reload(){
   setBusy(true);
   const [main,tournaments,athletes,clubs,registrations]=await Promise.all([
-   client.from(cfg.table).select("*").order("created_at",{ascending:false}),
+   client.from(cfg.table).select("*").order(cfg.table==="weigh_ins"?"measured_at":"created_at",{ascending:false}),
    client.from("tournaments").select("id,name").order("starts_at"),
    client.from("athletes").select("id,first_name,last_name").order("last_name"),
    client.from("clubs").select("id,name").order("name"),
