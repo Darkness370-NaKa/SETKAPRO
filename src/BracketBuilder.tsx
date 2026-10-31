@@ -90,10 +90,12 @@ export default function BracketBuilder({client,canEdit,onMessage,initialBracketI
     if(present!==1)continue;
     const emptySlot=match.athlete_a_id?"athlete_b_id":"athlete_a_id";
     const feeders=graph.filter(source=>
-      (source.next_match_id===match.id&&source.next_slot===emptySlot)||
-      (source.loser_next_match_id===match.id&&source.loser_next_slot===emptySlot)
+      source.loser_next_match_id===match.id&&source.loser_next_slot===emptySlot
     );
-    if(!feeders.length||feeders.some(source=>!["completed","bye"].includes(source.status)))continue;
+    // Only a bye in a feeder match proves that no loser can arrive.
+    // A completed feeder must have delivered its loser; never treat a missing
+    // propagation from a completed match as an automatic pass.
+    if(!feeders.length||feeders.some(source=>source.status!=="bye"))continue;
     const winnerId=match.athlete_a_id||match.athlete_b_id;
     const {error:updateError}=await client.from("matches").update({status:"bye",winner_id:winnerId,score_a:null,score_b:null,finish_reason:null}).eq("id",match.id).eq("status","pending");
     if(updateError){onMessage("Не удалось оформить автоматический проход: "+updateError.message);continue}
