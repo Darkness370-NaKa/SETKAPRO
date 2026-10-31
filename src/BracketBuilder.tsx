@@ -7,6 +7,7 @@ type Registration = { id:string; athlete_id:string; tournament_id:string; hand:s
 type WeighIn = { id:string; registration_id:string; weight:number; measured_at:string };
 type Match = { id:string; round_no:number; match_no:number; athlete_a_id:string|null; athlete_b_id:string|null; score_a:number|null; score_b:number|null; winner_id:string|null; status:string; fouls_a:number; fouls_b:number; remarks_a:number; remarks_b:number; finish_reason:string|null; bracket_side:string; next_match_id:string|null; next_slot:"athlete_a_id"|"athlete_b_id"|null; loser_next_match_id:string|null; loser_next_slot:"athlete_a_id"|"athlete_b_id"|null };
 type Bracket = { id:string; name:string; category_id:string; format:string };
+type MatchEvent = { id:string; match_id:string; action:string; old_data:any; new_data:any; changed_at:string; changed_by:string|null };
 
 export default function BracketBuilder({client,canEdit,onMessage}:{client:any;canEdit:boolean;onMessage:(s:string)=>void}) {
  const [categories,setCategories]=useState<Category[]>([]);
@@ -20,6 +21,8 @@ export default function BracketBuilder({client,canEdit,onMessage}:{client:any;ca
  const [format,setFormat]=useState<"single"|"double"|"rr">("single");
  const [bracketName,setBracketName]=useState("");
  const [matches,setMatches]=useState<Match[]>([]);
+ const [matchEvents,setMatchEvents]=useState<MatchEvent[]>([]);
+ const [showHistory,setShowHistory]=useState(false);
  const [busy,setBusy]=useState(false);
  const athleteMap=useMemo(()=>new Map(athletes.map(a=>[a.id,a])),[athletes]);
  const category=categories.find(c=>c.id===selectedCategory);
@@ -59,8 +62,13 @@ export default function BracketBuilder({client,canEdit,onMessage}:{client:any;ca
  useEffect(()=>{void reload()},[]);
  async function openBracket(id:string){
   setSelectedBracket(id);setBusy(true);
-  const {data,error}=await client.from("matches").select("*").eq("bracket_id",id).order("round_no").order("match_no");
+  const [{data,error},{data:events,error:eventError}]=await Promise.all([
+   client.from("matches").select("*").eq("bracket_id",id).order("round_no").order("match_no"),
+   client.from("match_change_log").select("id,match_id,action,old_data,new_data,changed_at,changed_by").eq("bracket_id",id).order("changed_at",{ascending:false}).limit(100)
+  ]);
   if(error)onMessage(error.message);else setMatches(data||[]);
+  if(eventError)onMessage("Не удалось загрузить историю: "+eventError.message);else setMatchEvents(events||[]);
+  setShowHistory(false);
   setBusy(false);
  }
  function moveAthlete(index:number,delta:number){
@@ -172,8 +180,12 @@ export default function BracketBuilder({client,canEdit,onMessage}:{client:any;ca
    }
    onMessage("Второй фол. Победа присуждена сопернику.");
   }else onMessage(kind==="remark"?(addsFoul?"Два замечания преобразованы в один фол.":"Замечание записано."):"Фол записан.");
-  const {data,error:loadError}=await client.from("matches").select("*").eq("bracket_id",selectedBracket).order("round_no").order("match_no");
+  const [{data,error:loadError},{data:events}]=await Promise.all([
+   client.from("matches").select("*").eq("bracket_id",selectedBracket).order("round_no").order("match_no"),
+   client.from("match_change_log").select("id,match_id,action,old_data,new_data,changed_at,changed_by").eq("bracket_id",selectedBracket).order("changed_at",{ascending:false}).limit(100)
+  ]);
   if(loadError)onMessage(loadError.message);else setMatches(data||[]);
+  setMatchEvents(events||[]);
   setBusy(false);
  }
  async function saveWinner(match:Match,winnerId:string,scoreA:string,scoreB:string){
@@ -220,6 +232,13 @@ export default function BracketBuilder({client,canEdit,onMessage}:{client:any;ca
   </div>}
   <div className="section-title" style={{marginTop:24}}><div><h2>Сохранённые сетки</h2><p>Откройте сетку, чтобы вносить результаты и продвигать победителей.</p></div></div>
   <div className="application-list">{brackets.map(b=><button type="button" className={selectedBracket===b.id?"application-row selected":"application-row"} key={b.id} onClick={()=>void openBracket(b.id)}><div className="app-main"><b>{b.name}</b><span>{categories.find(c=>c.id===b.category_id)?.name||"Категория"} · {b.format==="rr"?"Круговая система":b.format==="double"?"Двойное выбывание":"Олимпийская"}</span></div><Trophy size={18}/></button>)}{!brackets.length&&<div className="empty"><b>Сеток пока нет</b><p>Создайте первую сетку выше.</p></div>}</div>
+  {selectedBracket&&<div className="match-history-tools"><button type="button" className="secondary" onClick={()=>setShowHistory(v=>!v)}><RefreshCw size={14}/>{showHistory?"Скрыть историю":"История изменений ("+matchEvents.length+")"}</button></div>}
+  {selectedBracket&&showHistory&&<section className="match-history"><h3>История изменений сетки</h3>{matchEvents.length?matchEvents.map(ev=>{
+   const snapshot=ev.new_data||ev.old_data||{};
+   const matchNo=matches.find(m=>m.id===ev.match_id)?.match_no??snapshot.match_no??"—";
+   const detail=ev.action==="DELETE"?"Матч удалён":ev.action==="INSERT"?"Матч создан":snapshot.finish_reason==="fouls"?"Зафиксирован результат по фолам":snapshot.finish_reason==="score"?"Сохранён результат боя":"Обновлены данные матча";
+   return <div className="match-history-row" key={ev.id}><b>Матч {matchNo}</b><span>{detail}</span><time>{new Date(ev.changed_at).toLocaleString("ru-RU")}</time></div>;
+  }):<p>Изменений пока нет.</p>}</section>}
   {selectedBracket&&<div className="bracket-rounds">{rounds.map(round=><section className="bracket-round" key={round}><h3>{roundTitle(round)}</h3>{visibleMatches.filter(m=>m.round_no===round).map(match=><MatchCard key={match.id} match={match} athleteName={athleteName} canEdit={canEdit&&match.athlete_a_id!==null&&match.athlete_b_id!==null&&match.status!=="completed"} busy={busy} onSave={saveWinner} onViolation={recordViolation}/>)}</section>)}</div>}
  </section>;
 }
