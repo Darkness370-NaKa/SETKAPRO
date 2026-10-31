@@ -5,16 +5,13 @@ import BracketBuilder from "./BracketBuilder";
 
 type ImportAthlete = {last_name:string;first_name:string;gender:string|null;birth_date:string|null;city:string|null;country:string|null};
 function parseCsv(text:string):ImportAthlete[]{
- const firstLine=text.replace(/^\uFEFF/,"").split(/\r?
-/,1)[0]||"";
+ const firstLine=text.replace(/^\uFEFF/,"").split(/\r?\n/,1)[0]||"";
  const delimiter=(firstLine.match(/;/g)||[]).length>(firstLine.match(/,/g)||[]).length?";":(firstLine.includes("\t")?"\t":",");
  const records:string[][]=[];let row:string[]=[],cell="",quoted=false;
  for(let i=0;i<text.length;i++){const ch=text[i];
   if(ch==='"'){if(quoted&&text[i+1]==='"'){cell+='"';i++;}else quoted=!quoted;}
   else if(ch===delimiter&&!quoted){row.push(cell);cell="";}
-  else if((ch==="
-"||ch==="\r")&&!quoted){if(ch==="\r"&&text[i+1]==="
-")i++;row.push(cell);if(row.some(v=>v.trim()))records.push(row);row=[];cell="";}
+  else if((ch==="\n"||ch==="\r")&&!quoted){if(ch==="\r"&&text[i+1]==="\n")i++;row.push(cell);if(row.some(v=>v.trim()))records.push(row);row=[];cell="";}
   else cell+=ch;
  }
  row.push(cell);if(row.some(v=>v.trim()))records.push(row);
