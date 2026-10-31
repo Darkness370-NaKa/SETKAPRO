@@ -106,7 +106,6 @@ export default function App() {
 
   const canReview = useMemo(() => ["SUPER_ADMIN","ADMIN","ORGANIZER","SECRETARY"].includes(role), [role]);
   const isSuperAdmin = role === "SUPER_ADMIN";
-  const canManage = role !== "OBSERVER";
   const canEditModules = ["SUPER_ADMIN","ADMIN","ORGANIZER","SECRETARY","WEIGH_IN_OPERATOR","CHIEF_JUDGE","JUDGE"].includes(role);
 
   async function changeManagedRole(userId: string, nextRole: AppRole) {
@@ -127,14 +126,12 @@ export default function App() {
     { id: "apply", label: "Подать заявку", icon: ClipboardList },
     { id: "applications", label: "Мои заявки", icon: UserRound },
     ...(canReview ? [{ id: "admin", label: "Заявки участников", icon: Users }] : []),
-    ...(canManage ? [
-      { id: "athletes", label: "Спортсмены", icon: UserRound },
-      { id: "clubs", label: "Клубы", icon: Users },
-      { id: "registration", label: "Регистрация", icon: ClipboardList },
-      { id: "weighin", label: "Взвешивание", icon: Activity },
-      { id: "categories", label: "Весовые категории", icon: Trophy },
-      { id: "brackets", label: "Сетки и результаты", icon: CheckCircle2 }
-    ] : []),
+    { id: "athletes", label: "Спортсмены", icon: UserRound },
+    { id: "clubs", label: "Клубы", icon: Users },
+    { id: "registration", label: "Регистрация", icon: ClipboardList },
+    { id: "weighin", label: "Взвешивание", icon: Activity },
+    { id: "categories", label: "Весовые категории", icon: Trophy },
+    { id: "brackets", label: "Сетки и результаты", icon: CheckCircle2 },
     ...(isSuperAdmin ? [{ id: "users", label: "Пользователи и роли", icon: ShieldCheck }] : [])
   ] as const;
 
@@ -167,7 +164,7 @@ export default function App() {
         </section>}
         {tab === "applications" && <section className="panel"><div className="section-title"><div><h2>Мои заявки</h2><p>Здесь отображаются только ваши заявки.</p></div></div><ApplicationList items={applications.filter(a => a.user_id === user.id)} /></section>}
         {tab === "admin" && canReview && <section className="panel"><div className="section-title"><div><h2>Заявки участников</h2><p>Список заявок, доступный вашей роли.</p></div></div><div className="application-list">{applications.map(a => <div className="application-row" key={a.id}><div className="app-main"><b>{a.last_name} {a.first_name}</b><span>{a.tournaments?.name || "Турнир"} · {a.club_name || "Без клуба"} · {a.body_weight ? `${a.body_weight} кг` : "Вес не указан"}</span></div><Status status={a.status}/>{a.status === "pending" && <div className="row-actions"><button className="approve" onClick={() => reviewApplication(a.id,"approved")}>Одобрить</button><button className="reject" onClick={() => reviewApplication(a.id,"rejected")}>Отклонить</button></div>}</div>)}</div></section>}
-        {(["athletes","clubs","registration","weighin","categories","brackets"] as const).includes(tab as any) && canManage && <Management client={supabase} module={tab as "athletes" | "clubs" | "registration" | "weighin" | "categories" | "brackets"} canEdit={canEditModules} onMessage={setMessage} />}
+        {(["athletes","clubs","registration","weighin","categories","brackets"] as const).includes(tab as any) && <Management client={supabase} module={tab as "athletes" | "clubs" | "registration" | "weighin" | "categories" | "brackets"} canEdit={canEditModules} onMessage={setMessage} />}
         {tab === "users" && isSuperAdmin && <section className="panel"><div className="section-title"><div><h2>Пользователи и роли</h2><p>Назначайте права зарегистрированным пользователям. Новые аккаунты получают роль «Наблюдатель».</p></div><span className="tag">ТОЛЬКО СУПЕРАДМИНИСТРАТОР</span></div><div className="application-list">{managedUsers.map(item => <div className="application-row" key={item.user_id}><div className="app-main"><b>{item.email || "Без email"}</b><span>{item.full_name || "Имя не указано"} · регистрация {new Date(item.created_at).toLocaleDateString("ru-RU")}</span></div><select aria-label={`Роль пользователя ${item.email || item.user_id}`} value={item.role} disabled={busy || item.user_id === user.id} onChange={e => void changeManagedRole(item.user_id, e.target.value as AppRole)}>{(["OBSERVER","JUDGE","CHIEF_JUDGE","WEIGH_IN_OPERATOR","SECRETARY","ORGANIZER","ADMIN"] as AppRole[]).map(r => <option key={r} value={r}>{roleNames[r]}</option>)}</select></div>)}</div>{managedUsers.length === 0 && <Empty title="Пользователей пока нет" text="Зарегистрированные аккаунты появятся здесь после подтверждения регистрации."/>}<div className="admin-hint"><ShieldCheck size={17}/> Назначение и проверка ролей выполняются на стороне Supabase. Самостоятельно назначить себе права нельзя.</div></section>}
       </main>
     </div>
