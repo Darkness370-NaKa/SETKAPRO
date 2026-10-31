@@ -387,9 +387,13 @@ export default function BracketBuilder({client,canEdit,onMessage,initialBracketI
   const queue=[match.id],visited=new Set<string>([match.id]);
   while(queue.length){
    const current=queue.shift()!;
-   for(const child of graph.filter(row=>row.next_match_id===current||row.loser_next_match_id===current)){
-    if(visited.has(child.id))continue;
-    visited.add(child.id);
+   const source=graph.find(row=>row.id===current);
+   if(!source)continue;
+   for(const childId of [source.next_match_id,source.loser_next_match_id].filter(Boolean)){
+    if(visited.has(childId))continue;
+    visited.add(childId);
+    const child=graph.find(row=>row.id===childId);
+    if(!child)continue;
     if(child.status!=="pending")return {blocked:true,error:null};
     queue.push(child.id);
    }
