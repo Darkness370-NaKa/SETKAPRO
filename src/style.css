@@ -146,3 +146,9 @@ input:focus,select:focus{border-color:#d5d8d4;box-shadow:0 0 0 2px #ffffff12}
  .sidebar{background:#0b0c0c}
  .main{padding-top:22px}
 }
+
+/* APM MSK 37 emblem replaces the SETKA placeholder mark */
+.brand-mark{display:block;width:54px;height:54px;flex:0 0 54px;object-fit:contain;background:transparent!important;border:0!important;border-radius:0!important;box-shadow:none!important;transform:none!important;padding:0!important;color:transparent!important}
+.auth-visual .brand-mark{width:92px;height:92px;flex-basis:92px}
+.setup-page>.brand .brand-mark{width:72px;height:72px;flex-basis:72px}
+.brand{gap:12px}
