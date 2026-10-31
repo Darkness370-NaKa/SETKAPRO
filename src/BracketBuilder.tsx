@@ -30,6 +30,7 @@ export default function BracketBuilder({client,canEdit,onMessage,initialBracketI
  const [busy,setBusy]=useState(false);
  const athleteMap=useMemo(()=>new Map(athletes.map(a=>[a.id,a])),[athletes]);
  const category=categories.find(c=>c.id===selectedCategory);
+ useEffect(()=>{if(category&&["single","double","rr"].includes(category.format))setFormat(category.format as "single"|"double"|"rr")},[selectedCategory]);
  const eligible=useMemo(()=>{
    if(!category)return [];
    const categoryRegistrations=registrations.filter(r=>r.tournament_id===category.tournament_id&&r.status==="approved"&&(category.hand==="both"||r.hand==="both"||r.hand===category.hand));
@@ -163,7 +164,7 @@ export default function BracketBuilder({client,canEdit,onMessage,initialBracketI
    const wb:any[][]=[];
    let seedPositions=[1,2];
    while(seedPositions.length<size)seedPositions=seedPositions.flatMap(position=>[position,size+1-position]);
-   const seededAthletes:string[] = Array(size).fill(null);
+   const seededAthletes:(string|null)[] = Array(size).fill(null);
    selectedAthletes.forEach((athleteId,index)=>{seededAthletes[seedPositions[index]-1]=athleteId;});
    for(let r=1;r<=wbRounds;r++){
     const count=size/2**r;wb[r]=[];
