@@ -19,6 +19,7 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [mode, setMode] = useState<"login" | "signup" | "reset">("login");
   const [message, setMessage] = useState("");
+  const [editorBracketId, setEditorBracketId] = useState<string | null>(() => new URLSearchParams(window.location.search).get("bracket"));
   const [tab, setTab] = useState<"tournaments" | "apply" | "applications" | "admin" | "users" | "athletes" | "clubs" | "registration" | "weighin" | "categories" | "brackets">("tournaments");
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
   const [applications, setApplications] = useState<ParticipationApplication[]>([]);
@@ -162,6 +163,7 @@ export default function App() {
   if (loading) return <div className="center"><div className="loader" />Загрузка SETKA PRO…</div>;
   if (!isSupabaseConfigured || !supabase) return <SetupScreen />;
   if (!user) return <AuthScreen mode={mode} setMode={setMode} onSubmit={authSubmit} busy={busy} message={message} />;
+  if (editorBracketId) return <BracketBuilder client={supabase} canEdit={canEditModules} onMessage={setMessage} initialBracketId={editorBracketId} onExit={() => { window.history.pushState({}, "", window.location.pathname); setEditorBracketId(null); setTab("brackets"); }} />;
 
   const nav = [
     { id: "tournaments", label: "Турниры", icon: Trophy },
@@ -223,7 +225,7 @@ export default function App() {
         {tab === "applications" && <section className="panel"><div className="section-title"><div><h2>Мои заявки</h2><p>Здесь отображаются только ваши заявки.</p></div></div><ApplicationList items={applications.filter(a => a.user_id === user.id)} /></section>}
         {tab === "admin" && canReview && <section className="panel"><div className="section-title"><div><h2>Заявки участников</h2><p>Список заявок, доступный вашей роли.</p></div></div><div className="application-list">{applications.map(a => <div className="application-row" key={a.id}><div className="app-main"><b>{a.last_name} {a.first_name}</b><span>{a.tournaments?.name || "Турнир"} · {a.club_name || "Без клуба"} · {a.body_weight ? `${a.body_weight} кг` : "Вес не указан"}</span></div><Status status={a.status}/>{a.status === "pending" && <div className="row-actions"><button className="approve" onClick={() => reviewApplication(a.id,"approved")}>Одобрить</button><button className="reject" onClick={() => reviewApplication(a.id,"rejected")}>Отклонить</button></div>}</div>)}</div></section>}
         {(["athletes","clubs","registration","weighin","categories"] as const).includes(tab as any) && <Management client={supabase} module={tab as "athletes" | "clubs" | "registration" | "weighin" | "categories"} canEdit={canEditModules} onMessage={setMessage} />}
-        {tab === "brackets" && <BracketBuilder client={supabase} canEdit={canEditModules} onMessage={setMessage} />}
+        {tab === "brackets" && <BracketBuilder client={supabase} canEdit={canEditModules} onMessage={setMessage} onOpenEditor={(id) => { window.history.pushState({}, "", `${window.location.pathname}?bracket=${id}`); setEditorBracketId(id); }} />}
         {tab === "users" && isSuperAdmin && <section className="panel"><div className="section-title"><div><h2>Пользователи и роли</h2><p>Назначайте права зарегистрированным пользователям. Новые аккаунты получают роль «Наблюдатель».</p></div><span className="tag">ТОЛЬКО СУПЕРАДМИНИСТРАТОР</span></div><div className="application-list">{managedUsers.map(item => <div className="application-row" key={item.user_id}><div className="app-main"><b>{item.email || "Без email"}</b><span>{item.full_name || "Имя не указано"} · регистрация {new Date(item.created_at).toLocaleDateString("ru-RU")}</span></div><select aria-label={`Роль пользователя ${item.email || item.user_id}`} value={item.role} disabled={busy || item.user_id === user.id} onChange={e => void changeManagedRole(item.user_id, e.target.value as AppRole)}>{(["OBSERVER","JUDGE","CHIEF_JUDGE","WEIGH_IN_OPERATOR","SECRETARY","ORGANIZER","ADMIN"] as AppRole[]).map(r => <option key={r} value={r}>{roleNames[r]}</option>)}</select></div>)}</div>{managedUsers.length === 0 && <Empty title="Пользователей пока нет" text="Зарегистрированные аккаунты появятся здесь после подтверждения регистрации."/>}<div className="admin-hint"><ShieldCheck size={17}/> Назначение и проверка ролей выполняются на стороне Supabase. Самостоятельно назначить себе права нельзя.</div></section>}
       </main>
     </div>
