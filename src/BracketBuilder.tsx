@@ -361,16 +361,15 @@ export default function BracketBuilder({client,canEdit,onMessage,initialBracketI
   await openBracket(selectedBracket);setBusy(false);
  }
  async function moveManualMatch(match:Match,targetRound:number,targetIndex:number){
-  if(!canEdit||!selectedBracket)return;
-  const sourceRound=match.round_no;
-  const target=matches.filter(m=>m.round_no===targetRound&&m.id!==match.id).sort((a,b)=>a.match_no-b.match_no);
-  target.splice(Math.max(0,targetIndex),0,match);
-  const source=sourceRound===targetRound?[]:matches.filter(m=>m.round_no===sourceRound&&m.id!==match.id).sort((a,b)=>a.match_no-b.match_no);
+  if(!canEdit||!selectedBracket||busy)return;
   setBusy(true);
-  const results=await Promise.all([...target.map((m,i)=>client.from("matches").update({round_no:targetRound,match_no:i+1}).eq("id",m.id)),...source.map((m,i)=>client.from("matches").update({match_no:i+1}).eq("id",m.id))]);
-  const error=results.find(x=>x.error)?.error;
-  if(error)onMessage("Не удалось переместить блок: "+error.message);else onMessage("Блок перемещён.");
-  await openBracket(selectedBracket);setBusy(false);
+  const {error}=await client.rpc("move_bracket_match",{
+   p_match_id:match.id,p_target_round:targetRound,p_target_index:targetIndex
+  });
+  if(error)onMessage("Не удалось переместить блок: "+error.message);
+  else onMessage("Блок перемещён.");
+  await openBracket(selectedBracket);
+  setBusy(false);
  }
  async function saveMatchLinks(match:Match,nextId:string,nextSlot:"athlete_a_id"|"athlete_b_id",loserId:string,loserSlot:"athlete_a_id"|"athlete_b_id"){
   if(!canEdit||!selectedBracket)return;
