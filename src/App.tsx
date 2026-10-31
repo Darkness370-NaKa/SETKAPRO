@@ -177,7 +177,7 @@ export default function App() {
       for (const table of order) {
         const rows = backup.data[table] || [];
         for (let i = 0; i < rows.length; i += 200) {
-          const { error } = await supabase.from(table).upsert(rows.slice(i, i + 200), { onConflict: "id" });
+          const { error } = await supabase.from(table).upsert(rows.slice(i, i + 200), { onConflict: "id", ignoreDuplicates: table === "match_change_log" });
           if (error) throw new Error("Ошибка восстановления " + table + ": " + error.message + ". Предыдущие разделы уже могли сохраниться.");
           restored += Math.min(200, rows.length - i);
         }
