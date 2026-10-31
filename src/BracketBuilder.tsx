@@ -303,25 +303,26 @@ export default function BracketBuilder({client,canEdit,onMessage,initialBracketI
  }
  async function recordViolation(match:Match,side:"a"|"b",kind:"foul"|"remark"){
   if(!canEdit||match.status==="completed"||!match.athlete_a_id||!match.athlete_b_id||busy)return;
-  const foulKey=side==="a"?"fouls_a":"fouls_b";
-  const remarkKey=side==="a"?"remarks_a":"remarks_b";
-  const currentFouls=Number(match[foulKey]||0);
-  const currentRemarks=Number(match[remarkKey]||0);
-  const nextRemarks=kind==="remark"?(currentRemarks+1)%2:0;
-  const addsFoul=kind==="foul"||currentRemarks+1>=2;
-  const nextFouls=currentFouls+(addsFoul?1:0);
-  const updates:any={[remarkKey]:nextRemarks,[foulKey]:nextFouls};
-  let winnerId:string|null=null;
-  if(nextFouls>=2){winnerId=side==="a"?match.athlete_b_id:match.athlete_a_id;updates.winner_id=winnerId;updates.status="completed";updates.finish_reason="fouls";updates.score_a=null;updates.score_b=null;}
   setBusy(true);
-  const {error}=await client.from("matches").update(updates).eq("id",match.id).neq("status","completed");
-  if(error){onMessage("Не удалось записать нарушение: "+error.message);setBusy(false);return}
+  const {data,error}=await client.rpc("record_match_violation",{
+   p_match_id:match.id,p_side:side,p_kind:kind
+  });
+  if(error){
+   onMessage("Не удалось записать нарушение: "+error.message);
+   await openBracket(selectedBracket);
+   setBusy(false);
+   return;
+  }
+  const winnerId=(data as any)?.winner_id as string|null;
   if(winnerId){
    const loserId=side==="a"?match.athlete_a_id:match.athlete_b_id;
    const propagationError=await propagateMatchResult(match,winnerId,loserId);
    if(propagationError)onMessage("Нарушение записано, но переход требует внимания: "+propagationError);
-   else { await resolveAutomaticByes(selectedBracket); onMessage("Второй фол. Победа присуждена сопернику."); }
-  }else onMessage(kind==="remark"?(addsFoul?"Два замечания преобразованы в один фол.":"Замечание записано."):"Фол записан.");
+   else {await resolveAutomaticByes(selectedBracket);onMessage("Второй фол. Победа присуждена сопернику.");}
+  }else{
+   const result=(data as any)||{};
+   onMessage(kind==="remark"?(result.fouls>Number(match[side==="a"?"fouls_a":"fouls_b"]||0)?"Два замечания преобразованы в один фол.":"Замечание записано."):"Фол записан.");
+  }
   await openBracket(selectedBracket);
   setBusy(false);
  }
