@@ -77,6 +77,41 @@ export default function BracketBuilder({client,canEdit,onMessage,initialBracketI
   setShowHistory(false);
   setBusy(false);
  }
+ async function resolveAutomaticByes(bracketId:string){
+  const {data,error}=await client.from("matches").select("*").eq("bracket_id",bracketId);
+  if(error){onMessage("Не удалось проверить автоматические проходы: "+error.message);return}
+  const graph:any[]=[...(data||[])];
+  let changed=true,passes=0;
+  while(changed&&passes++<graph.length+1){
+   changed=false;
+   for(const match of graph){
+    if(match.status!=="pending"||!["winners","losers"].includes(match.bracket_side))continue;
+    const present=Number(Boolean(match.athlete_a_id))+Number(Boolean(match.athlete_b_id));
+    if(present!==1)continue;
+    const emptySlot=match.athlete_a_id?"athlete_b_id":"athlete_a_id";
+    const feeders=graph.filter(source=>
+      (source.next_match_id===match.id&&source.next_slot===emptySlot)||
+      (source.loser_next_match_id===match.id&&source.loser_next_slot===emptySlot)
+    );
+    if(!feeders.length||feeders.some(source=>!["completed","bye"].includes(source.status)))continue;
+    const winnerId=match.athlete_a_id||match.athlete_b_id;
+    const {error:updateError}=await client.from("matches").update({status:"bye",winner_id:winnerId,score_a:null,score_b:null,finish_reason:null}).eq("id",match.id).eq("status","pending");
+    if(updateError){onMessage("Не удалось оформить автоматический проход: "+updateError.message);continue}
+    match.status="bye";match.winner_id=winnerId;changed=true;
+    if(match.next_match_id&&match.next_slot){
+      const target=graph.find(x=>x.id===match.next_match_id);
+      if(!target){onMessage("Не найден следующий матч для автоматического прохода.");continue}
+      const current=target[match.next_slot];
+      if(current&&current!==winnerId){onMessage("Автоматический проход остановлен: целевой слот занят другим спортсменом.");continue}
+      if(!current){
+       const {error:propError}=await client.from("matches").update({[match.next_slot]:winnerId}).eq("id",target.id);
+       if(propError){onMessage("Не удалось перенести участника после автоматического прохода: "+propError.message);continue}
+       target[match.next_slot]=winnerId;
+      }
+    }
+   }
+  }
+ }
  function shuffleAthletes(){setSelectedAthletes(prev=>{const next=[...prev];for(let i=next.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[next[i],next[j]]=[next[j],next[i]]}return next})}
  async function archiveBracket(id:string){if(!canEdit||!confirm("Переместить сетку в корзину? Матчи и результаты сохранятся."))return;const {error}=await client.from("brackets").update({archived_at:new Date().toISOString()}).eq("id",id);if(error){onMessage(error.message);return}if(selectedBracket===id){setSelectedBracket("");setMatches([])}onMessage("Сетка перемещена в корзину.");await reload()}
  async function restoreBracket(id:string){const {error}=await client.from("brackets").update({archived_at:null}).eq("id",id);if(error){onMessage(error.message);return}onMessage("Сетка восстановлена.");await reload()}
@@ -182,6 +217,7 @@ export default function BracketBuilder({client,canEdit,onMessage,initialBracketI
     if(match.next_match_id&&match.next_slot)await client.from("matches").update({[match.next_slot]:match.winner_id}).eq("id",match.next_match_id);
    }
   }
+  await resolveAutomaticByes(created.id);
   onMessage("Сетка создана. Можно проводить матчи и вносить результаты.");
   setBracketName("");setSelectedBracket(created.id);await reload();await openBracket(created.id);
  }
@@ -233,7 +269,7 @@ export default function BracketBuilder({client,canEdit,onMessage,initialBracketI
    const loserId=side==="a"?match.athlete_a_id:match.athlete_b_id;
    const propagationError=await propagateMatchResult(match,winnerId,loserId);
    if(propagationError)onMessage("Нарушение записано, но переход требует внимания: "+propagationError);
-   else onMessage("Второй фол. Победа присуждена сопернику.");
+   else { await resolveAutomaticByes(selectedBracket); onMessage("Второй фол. Победа присуждена сопернику."); }
   }else onMessage(kind==="remark"?(addsFoul?"Два замечания преобразованы в один фол.":"Замечание записано."):"Фол записан.");
   await openBracket(selectedBracket);
   setBusy(false);
@@ -322,6 +358,7 @@ export default function BracketBuilder({client,canEdit,onMessage,initialBracketI
   if(error){onMessage("Не удалось сохранить результат: "+error.message);setBusy(false);return}
   const propagationError=await propagateMatchResult(match,winnerId,loserId);
   if(propagationError)onMessage("Результат сохранён, но переход требует внимания: "+propagationError);
+  else await resolveAutomaticByes(selectedBracket);
   const {data,error:loadError}=await client.from("matches").select("*").eq("bracket_id",selectedBracket).order("round_no").order("match_no");
   if(loadError)onMessage(loadError.message);else setMatches(data||[]);
   setBusy(false);
@@ -336,7 +373,7 @@ export default function BracketBuilder({client,canEdit,onMessage,initialBracketI
   <div className="section-title"><div><h2>{initialBracketId?(brackets.find(b=>b.id===selectedBracket)?.name||"Редактор сетки"):"Конструктор турнирных сеток"}</h2><p>{initialBracketId?"Управление матчами, результатами и ходом соревнования.":"Состав участников берётся из допущенных регистраций выбранной весовой категории."}</p></div><button className="secondary" onClick={()=>initialBracketId?void openBracket(selectedBracket):void reload()} disabled={busy}><RefreshCw size={15}/> Обновить</button></div>
   {!initialBracketId&&canEdit&&<div className="form-grid management-form">
    <label className="full">Весовая категория<select value={selectedCategory} onChange={e=>{setSelectedCategory(e.target.value);setSelectedAthletes([])}}><option value="">Выберите категорию</option>{categories.map(c=><option key={c.id} value={c.id}>{c.name} · {c.gender==="male"?"мужчины":c.gender==="female"?"женщины":"открытая"} · {c.hand==="right"?"правая":c.hand==="left"?"левая":"обе"} рука</option>)}</select></label>
-   <label>Формат сетки<select value={format} onChange={e=>setFormat(e.target.value as "single"|"rr")}><option value="single">Олимпийская — одно поражение</option><option value="double">Двойное выбывание — два поражения</option><option value="rr">Круговая — каждый с каждым</option></select></label>
+   <label>Формат сетки<select value={format} onChange={e=>setFormat(e.target.value as "single"|"double"|"rr")}><option value="single">Олимпийская — одно поражение</option><option value="double">Двойное выбывание — два поражения</option><option value="rr">Круговая — каждый с каждым</option></select></label>
    <label>Название сетки<input value={bracketName} onChange={e=>setBracketName(e.target.value)} placeholder="Автоматически по категории"/></label>
    <div className="full"><b>Участники ({selectedAthletes.length} выбрано из {eligible.length})</b><button type="button" className="secondary" onClick={shuffleAthletes}><Shuffle size={14}/> Случайный посев</button><p>В список попадают только одобренные регистрации подходящей руки и пола. Если у категории задан диапазон веса, учитывается последнее взвешивание: без зафиксированного веса спортсмен не допускается. Порядок посева задаётся кнопками ↑ и ↓.</p>
     <div className="application-list">{eligible.map(a=>{const index=selectedAthletes.indexOf(a.id);return <div className="application-row" key={a.id}><label className="check-row"><input type="checkbox" checked={index>=0} onChange={e=>setSelectedAthletes(prev=>e.target.checked?[...prev,a.id]:prev.filter(id=>id!==a.id))}/><span>{a.last_name} {a.first_name}</span></label>{index>=0&&<div className="row-actions"><span className="tag">Посев {index+1}</span><button className="icon-btn" type="button" onClick={()=>moveAthlete(index,-1)} disabled={index===0}><ArrowUp size={15}/></button><button className="icon-btn" type="button" onClick={()=>moveAthlete(index,1)} disabled={index===selectedAthletes.length-1}><ArrowDown size={15}/></button></div>}</div>})}{!eligible.length&&<div className="empty"><b>Нет допущенных спортсменов</b><p>Сначала добавьте спортсменов, зарегистрируйте их на турнир и установите статус «Допущен».</p></div>}</div>
