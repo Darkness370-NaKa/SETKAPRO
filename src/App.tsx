@@ -166,7 +166,13 @@ export default function App() {
         throw new Error("Файл не является резервной копией SETKA PRO версии 1.");
       }
       const order = ["tournaments","clubs","athletes","tournament_categories","registrations","participation_applications","weigh_ins","brackets","matches","match_change_log"];
+      if (Array.isArray(backup.data)) throw new Error("Разделы резервной копии имеют неверный формат.");
       const allowed = new Set(order);
+      for (const table of order) {
+        if (!Object.prototype.hasOwnProperty.call(backup.data, table)) {
+          throw new Error("В резервной копии отсутствует обязательный раздел: " + table);
+        }
+      }
       for (const key of Object.keys(backup.data)) {
         if (!allowed.has(key) || !Array.isArray(backup.data[key])) throw new Error("Некорректный раздел резервной копии: " + key);
         if (backup.data[key].some((row: any) => !row || typeof row !== "object" || Array.isArray(row) || typeof row.id !== "string")) {
