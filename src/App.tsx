@@ -115,6 +115,7 @@ export default function App() {
       user_id: user.id,
       first_name: String(fd.get("first_name")).trim(),
       last_name: String(fd.get("last_name")).trim(),
+      gender: String(fd.get("gender") || "male"),
       birth_date: String(fd.get("birth_date") || "") || null,
       club_name: String(fd.get("club_name") || "").trim() || null,
       body_weight: fd.get("body_weight") ? Number(fd.get("body_weight")) : null,
@@ -128,8 +129,8 @@ export default function App() {
 
   async function reviewApplication(id: string, status: "approved" | "rejected") {
     if (!supabase) return;
-    const { error } = await supabase.from("participation_applications").update({ status, reviewed_at: new Date().toISOString() }).eq("id", id);
-    setMessage(error ? error.message : "Статус заявки обновлён.");
+    const { error } = await supabase.rpc("review_participation_application", { p_application_id: id, p_status: status, p_review_note: null });
+    setMessage(error ? `Не удалось обработать заявку: ${error.message}` : status === "approved" ? "Заявка одобрена: спортсмен и регистрация созданы, данные переданы в список взвешивания." : "Заявка отклонена.");
     await loadUserData();
   }
 
@@ -201,7 +202,7 @@ export default function App() {
           <form className="form-grid" onSubmit={submitApplication}>
             <label className="full">Турнир<select name="tournament_id" required value={selectedTournament} onChange={e => setSelectedTournament(e.target.value)}><option value="">Выберите турнир</option>{tournaments.filter(t => t.status === "published").map(t => <option value={t.id} key={t.id}>{t.name}</option>)}</select></label>
             <label>Имя<input name="first_name" required maxLength={80}/></label><label>Фамилия<input name="last_name" required maxLength={80}/></label>
-            <label>Дата рождения<input type="date" name="birth_date"/></label><label>Клуб<input name="club_name" maxLength={120}/></label>
+            <label>Дата рождения<input type="date" name="birth_date"/></label><label>Пол<select name="gender"><option value="male">Мужской</option><option value="female">Женский</option><option value="other">Открытая категория</option></select></label><label>Клуб<input name="club_name" maxLength={120}/></label>
             <label>Вес, кг<input name="body_weight" type="number" min="20" max="250" step="0.1"/></label>
             <label>Рука<select name="arm"><option value="right">Правая</option><option value="left">Левая</option><option value="both">Обе</option></select></label>
             <div className="full form-actions"><button className="primary" disabled={busy || !tournaments.some(t => t.id === selectedTournament && t.status === "published")}>{busy ? "Отправка…" : "Отправить заявку"} <ArrowRight size={17}/></button></div>
