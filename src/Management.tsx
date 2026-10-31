@@ -141,7 +141,7 @@ export default function Management({client,module,canEdit,onMessage}:{client:any
    value.operator_id=(await client.auth.getUser()).data.user?.id;
   }
   if(module==="registration"){
-   const {data:duplicate,error:duplicateError}=await client.from("registrations").select("id").eq("tournament_id",value.tournament_id).eq("athlete_id",value.athlete_id).neq("id",editingId||"00000000-0000-0000-0000-000000000000").limit(1);
+   const {data:duplicate,error:duplicateError}=await client.from("registrations").select("id").eq("tournament_id",value.tournament_id).eq("athlete_id",value.athlete_id).eq("hand",value.hand).neq("id",editingId||"00000000-0000-0000-0000-000000000000").limit(1);
    if(duplicateError){onMessage("Не удалось проверить повторную регистрацию: "+duplicateError.message);return}
    if(duplicate?.length){onMessage("Этот спортсмен уже зарегистрирован на выбранный турнир.");return}
   }
