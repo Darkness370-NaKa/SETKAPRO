@@ -160,7 +160,10 @@ export default function BracketBuilder({client,canEdit,onMessage,initialBracketI
    const wbRounds=Math.log2(size);
    const wb:any[][]=[];
    let seedPositions=[1,2];
-   while(seedPositions.length<size)seedPositions=seedPositions.flatMap(position=>[position,size+1-position]);
+   while(seedPositions.length<size){
+    const nextSize=seedPositions.length*2;
+    seedPositions=seedPositions.flatMap(seed=>[seed,nextSize+1-seed]);
+   }
    // seedPositions describes the seed assigned to each visual slot.
    // Map it in slot order; inverting this array pairs the wrong seeds (e.g. 1 vs 3).
    const seededAthletes:(string|null)[] = seedPositions.map(seed=>selectedAthletes[seed-1]||null);
