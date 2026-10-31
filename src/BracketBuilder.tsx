@@ -380,6 +380,26 @@ export default function BracketBuilder({client,canEdit,onMessage,initialBracketI
   if(error)onMessage("Не удалось удалить блок: "+error.message);else onMessage("Блок матча удалён.");
   await openBracket(selectedBracket);setBusy(false);
  }
+ async function hasResolvedDescendants(match:Match){
+  const {data,error}=await client.from("matches").select("id,status,next_match_id,loser_next_match_id,bracket_side").eq("bracket_id",selectedBracket);
+  if(error)return {blocked:true,error:error.message};
+  const graph:any[]=data||[];
+  const queue=[match.id],visited=new Set<string>([match.id]);
+  while(queue.length){
+   const current=queue.shift()!;
+   for(const child of graph.filter(row=>row.next_match_id===current||row.loser_next_match_id===current)){
+    if(visited.has(child.id))continue;
+    visited.add(child.id);
+    if(child.status!=="pending")return {blocked:true,error:null};
+    queue.push(child.id);
+   }
+  }
+  if(match.bracket_side==="grand_final"){
+   const reset=graph.find(row=>row.bracket_side==="reset_final");
+   if(reset&&reset.status!=="pending")return {blocked:true,error:null};
+  }
+  return {blocked:false,error:null};
+ }
  async function saveWinner(match:Match,winnerId:string,scoreA:string,scoreB:string){
   if(!canEdit||!winnerId)return;
   const a=Number(scoreA),b=Number(scoreB);
@@ -387,7 +407,12 @@ export default function BracketBuilder({client,canEdit,onMessage,initialBracketI
   if((winnerId===match.athlete_a_id&&a<b)||(winnerId===match.athlete_b_id&&b<a)){onMessage("Победитель не совпадает с указанным счётом.");return}
   if(!match.athlete_a_id||!match.athlete_b_id){onMessage("Сначала назначьте обоих участников матча.");return}
   const isCorrection=match.status==="completed"&&match.winner_id;
-  if(isCorrection&&!confirm("Результат этого матча уже сохранён. Исправить его? Прямые переходы победителя и проигравшего будут обновлены, но уже сыгранные последующие матчи автоматически не пересчитываются."))return;
+  if(isCorrection&&!confirm("Исправить результат этого матча? Если следующие матчи уже начаты или завершены, исправление будет заблокировано, чтобы не испортить сетку."))return;
+  if(isCorrection){
+   const descendants=await hasResolvedDescendants(match);
+   if(descendants.error){onMessage("Не удалось проверить следующие матчи: "+descendants.error);return}
+   if(descendants.blocked){onMessage("Нельзя исправить результат: в последующих матчах уже есть результаты или автоматические проходы. Сначала сбросьте их.");return}
+  }
   const oldWinner=match.winner_id;
   const oldLoser=oldWinner?(oldWinner===match.athlete_a_id?match.athlete_b_id:match.athlete_a_id):null;
   const loserId=winnerId===match.athlete_a_id?match.athlete_b_id:match.athlete_a_id;
