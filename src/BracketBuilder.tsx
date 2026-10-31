@@ -4,6 +4,7 @@ import { ArrowDown, ArrowUp, Plus, RefreshCw, Trophy } from "lucide-react";
 type Category = { id:string; tournament_id:string; name:string; format:string; gender:string; hand:string; min_weight:number|null; max_weight:number|null };
 type Athlete = { id:string; first_name:string; last_name:string; gender:string; birth_date:string|null; club_id:string|null };
 type Registration = { id:string; athlete_id:string; tournament_id:string; hand:string; status:string };
+type WeighIn = { id:string; registration_id:string; weight:number; measured_at:string };
 type Match = { id:string; round_no:number; match_no:number; athlete_a_id:string|null; athlete_b_id:string|null; score_a:number|null; score_b:number|null; winner_id:string|null; status:string; bracket_side:string; next_match_id:string|null; next_slot:"athlete_a_id"|"athlete_b_id"|null; loser_next_match_id:string|null; loser_next_slot:"athlete_a_id"|"athlete_b_id"|null };
 type Bracket = { id:string; name:string; category_id:string; format:string };
 
@@ -11,6 +12,7 @@ export default function BracketBuilder({client,canEdit,onMessage}:{client:any;ca
  const [categories,setCategories]=useState<Category[]>([]);
  const [athletes,setAthletes]=useState<Athlete[]>([]);
  const [registrations,setRegistrations]=useState<Registration[]>([]);
+ const [weighIns,setWeighIns]=useState<WeighIn[]>([]);
  const [brackets,setBrackets]=useState<Bracket[]>([]);
  const [selectedCategory,setSelectedCategory]=useState("");
  const [selectedBracket,setSelectedBracket]=useState("");
@@ -23,20 +25,35 @@ export default function BracketBuilder({client,canEdit,onMessage}:{client:any;ca
  const category=categories.find(c=>c.id===selectedCategory);
  const eligible=useMemo(()=>{
    if(!category)return [];
-   const ids=new Set(registrations.filter(r=>r.tournament_id===category.tournament_id&&r.status==="approved"&&(category.hand==="both"||r.hand==="both"||r.hand===category.hand)).map(r=>r.athlete_id));
-   return athletes.filter(a=>ids.has(a.id)&&(category.gender==="other"||a.gender===category.gender)).sort((a,b)=>a.last_name.localeCompare(b.last_name,"ru")||a.first_name.localeCompare(b.first_name,"ru"));
- },[category,athletes,registrations]);
+   const categoryRegistrations=registrations.filter(r=>r.tournament_id===category.tournament_id&&r.status==="approved"&&(category.hand==="both"||r.hand==="both"||r.hand===category.hand));
+   const latestWeight=new Map<string,number>();
+   const registrationById=new Map(categoryRegistrations.map(r=>[r.id,r]));
+   for(const weighIn of weighIns){
+     const registration=registrationById.get(weighIn.registration_id);
+     if(registration&&!latestWeight.has(registration.athlete_id))latestWeight.set(registration.athlete_id,Number(weighIn.weight));
+   }
+   const ids=new Set(categoryRegistrations.map(r=>r.athlete_id));
+   return athletes.filter(a=>{
+     if(!ids.has(a.id)||(category.gender!=="other"&&a.gender!==category.gender))return false;
+     const weight=latestWeight.get(a.id);
+     if((category.min_weight!==null||category.max_weight!==null)&&weight===undefined)return false;
+     if(weight!==undefined&&category.min_weight!==null&&weight<Number(category.min_weight))return false;
+     if(weight!==undefined&&category.max_weight!==null&&weight>Number(category.max_weight))return false;
+     return true;
+   }).sort((a,b)=>a.last_name.localeCompare(b.last_name,"ru")||a.first_name.localeCompare(b.first_name,"ru"));
+ },[category,athletes,registrations,weighIns]);
  async function reload(){
   setBusy(true);
-  const [c,a,r,b]=await Promise.all([
+  const [c,a,r,b,w]=await Promise.all([
    client.from("tournament_categories").select("*").order("name"),
    client.from("athletes").select("*").order("last_name"),
    client.from("registrations").select("*").eq("status","approved"),
-   client.from("brackets").select("*").order("created_at",{ascending:false})
+   client.from("brackets").select("*").order("created_at",{ascending:false}),
+   client.from("weigh_ins").select("id,registration_id,weight,measured_at").order("measured_at",{ascending:false})
   ]);
-  const error=c.error||a.error||r.error||b.error;
+  const error=c.error||a.error||r.error||b.error||w.error;
   if(error)onMessage("Не удалось загрузить данные конструктора: "+error.message);
-  setCategories(c.data||[]);setAthletes(a.data||[]);setRegistrations(r.data||[]);setBrackets(b.data||[]);
+  setCategories(c.data||[]);setAthletes(a.data||[]);setRegistrations(r.data||[]);setBrackets(b.data||[]);setWeighIns(w.data||[]);
   setBusy(false);
  }
  useEffect(()=>{void reload()},[]);
@@ -167,7 +184,7 @@ export default function BracketBuilder({client,canEdit,onMessage}:{client:any;ca
    <label className="full">Весовая категория<select value={selectedCategory} onChange={e=>{setSelectedCategory(e.target.value);setSelectedAthletes([])}}><option value="">Выберите категорию</option>{categories.map(c=><option key={c.id} value={c.id}>{c.name} · {c.gender==="male"?"мужчины":c.gender==="female"?"женщины":"открытая"} · {c.hand==="right"?"правая":c.hand==="left"?"левая":"обе"} рука</option>)}</select></label>
    <label>Формат сетки<select value={format} onChange={e=>setFormat(e.target.value as "single"|"rr")}><option value="single">Олимпийская — одно поражение</option><option value="double">Двойное выбывание — два поражения</option><option value="rr">Круговая — каждый с каждым</option></select></label>
    <label>Название сетки<input value={bracketName} onChange={e=>setBracketName(e.target.value)} placeholder="Автоматически по категории"/></label>
-   <div className="full"><b>Участники ({selectedAthletes.length} выбрано из {eligible.length})</b><p>Отметьте спортсменов и при необходимости задайте порядок посева кнопками ↑ и ↓. Первый участник попадёт в первую пару.</p>
+   <div className="full"><b>Участники ({selectedAthletes.length} выбрано из {eligible.length})</b><p>В список попадают только одобренные регистрации подходящей руки и пола. Если у категории задан диапазон веса, учитывается последнее взвешивание: без зафиксированного веса спортсмен не допускается. Порядок посева задаётся кнопками ↑ и ↓.</p>
     <div className="application-list">{eligible.map(a=>{const index=selectedAthletes.indexOf(a.id);return <div className="application-row" key={a.id}><label className="check-row"><input type="checkbox" checked={index>=0} onChange={e=>setSelectedAthletes(prev=>e.target.checked?[...prev,a.id]:prev.filter(id=>id!==a.id))}/><span>{a.last_name} {a.first_name}</span></label>{index>=0&&<div className="row-actions"><span className="tag">Посев {index+1}</span><button className="icon-btn" type="button" onClick={()=>moveAthlete(index,-1)} disabled={index===0}><ArrowUp size={15}/></button><button className="icon-btn" type="button" onClick={()=>moveAthlete(index,1)} disabled={index===selectedAthletes.length-1}><ArrowDown size={15}/></button></div>}</div>})}{!eligible.length&&<div className="empty"><b>Нет допущенных спортсменов</b><p>Сначала добавьте спортсменов, зарегистрируйте их на турнир и установите статус «Допущен».</p></div>}</div>
    </div>
    <div className="full form-actions"><button className="primary" disabled={busy||selectedAthletes.length<2||!selectedCategory} onClick={()=>void createBracket()}><Plus size={16}/> Построить сетку</button></div>
