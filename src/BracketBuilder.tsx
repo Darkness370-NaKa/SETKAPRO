@@ -267,10 +267,23 @@ export default function BracketBuilder({client,canEdit,onMessage,initialBracketI
   const a=Number(scoreA),b=Number(scoreB);
   if(!Number.isFinite(a)||!Number.isFinite(b)||a<0||b<0||a===b){onMessage("Укажите корректный счёт: ничья в матче на выбывание невозможна.");return}
   if((winnerId===match.athlete_a_id&&a<b)||(winnerId===match.athlete_b_id&&b<a)){onMessage("Победитель не совпадает с указанным счётом.");return}
+  if(!match.athlete_a_id||!match.athlete_b_id){onMessage("Сначала назначьте обоих участников матча.");return}
+  const isCorrection=match.status==="completed"&&match.winner_id;
+  if(isCorrection&&!confirm("Результат этого матча уже сохранён. Исправить его? Прямые переходы победителя и проигравшего будут обновлены, но уже сыгранные последующие матчи автоматически не пересчитываются."))return;
+  const oldWinner=match.winner_id;
+  const oldLoser=oldWinner?(oldWinner===match.athlete_a_id?match.athlete_b_id:match.athlete_a_id):null;
+  const loserId=winnerId===match.athlete_a_id?match.athlete_b_id:match.athlete_a_id;
   setBusy(true);
+  if(isCorrection&&match.next_match_id&&match.next_slot&&oldWinner){
+   const {error:clearError}=await client.from("matches").update({[match.next_slot]:null}).eq("id",match.next_match_id).eq(match.next_slot,oldWinner);
+   if(clearError)onMessage("Не удалось очистить прежний слот победителя: "+clearError.message);
+  }
+  if(isCorrection&&match.loser_next_match_id&&match.loser_next_slot&&oldLoser){
+   const {error:clearError}=await client.from("matches").update({[match.loser_next_slot]:null}).eq("id",match.loser_next_match_id).eq(match.loser_next_slot,oldLoser);
+   if(clearError)onMessage("Не удалось очистить прежний слот проигравшего: "+clearError.message);
+  }
   const {error}=await client.from("matches").update({score_a:a,score_b:b,winner_id:winnerId,status:"completed",finish_reason:"score"}).eq("id",match.id);
   if(error){onMessage("Не удалось сохранить результат: "+error.message);setBusy(false);return}
-    const loserId=winnerId===match.athlete_a_id?match.athlete_b_id:match.athlete_a_id;
   if(match.next_match_id&&match.next_slot){
    const {error:advanceError}=await client.from("matches").update({[match.next_slot]:winnerId}).eq("id",match.next_match_id);
    if(advanceError)onMessage("Не удалось перенести победителя: "+advanceError.message);
