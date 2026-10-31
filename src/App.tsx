@@ -17,7 +17,7 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [mode, setMode] = useState<"login" | "signup" | "reset">("login");
   const [message, setMessage] = useState("");
-  const [tab, setTab] = useState<"tournaments" | "apply" | "applications" | "admin">("tournaments");
+  const [tab, setTab] = useState<"tournaments" | "apply" | "applications" | "admin" | "users">("tournaments");
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
   const [applications, setApplications] = useState<ParticipationApplication[]>([]);
   const [selectedTournament, setSelectedTournament] = useState("");
