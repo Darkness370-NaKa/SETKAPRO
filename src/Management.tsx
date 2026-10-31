@@ -75,14 +75,24 @@ export default function Management({client,module,canEdit,onMessage}:{client:any
  const [importName,setImportName]=useState("");
  const [importBusy,setImportBusy]=useState(false);
 
+ async function fetchAll(query:any){
+  const all:any[]=[];
+  for(let offset=0;;offset+=1000){
+   const {data,error}=await query.range(offset,offset+999);
+   if(error)return {data:null,error};
+   all.push(...(data||[]));
+   if((data||[]).length<1000)break;
+  }
+  return {data:all,error:null};
+ }
  async function reload(){
   setBusy(true);
   const [main,tournaments,athletes,clubs,registrations]=await Promise.all([
-   client.from(cfg.table).select("*").order(cfg.table==="weigh_ins"?"measured_at":"created_at",{ascending:false}),
-   client.from("tournaments").select("id,name").order("starts_at"),
-   client.from("athletes").select("id,first_name,last_name").order("last_name"),
-   client.from("clubs").select("id,name").order("name"),
-   client.from("registrations").select("id,tournament_id,athlete_id,hand,status,athletes(first_name,last_name),tournaments(name)").order("created_at",{ascending:false})
+   fetchAll(client.from(cfg.table).select("*").order(cfg.table==="weigh_ins"?"measured_at":"created_at",{ascending:false})),
+   fetchAll(client.from("tournaments").select("id,name").order("starts_at")),
+   fetchAll(client.from("athletes").select("id,first_name,last_name").order("last_name")),
+   fetchAll(client.from("clubs").select("id,name").order("name")),
+   fetchAll(client.from("registrations").select("id,tournament_id,athlete_id,hand,status,athletes(first_name,last_name),tournaments(name)").order("created_at",{ascending:false}))
   ]);
   const error=main.error||tournaments.error||athletes.error||clubs.error||registrations.error;
   if(error)onMessage("Не удалось загрузить данные: "+error.message);
