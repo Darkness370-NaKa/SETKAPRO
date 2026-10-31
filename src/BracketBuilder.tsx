@@ -9,14 +9,14 @@ type Match = { id:string; round_no:number; match_no:number; athlete_a_id:string|
 type Bracket = { id:string; name:string; category_id:string; format:string };
 type MatchEvent = { id:string; match_id:string; action:string; old_data:any; new_data:any; changed_at:string; changed_by:string|null };
 
-export default function BracketBuilder({client,canEdit,onMessage}:{client:any;canEdit:boolean;onMessage:(s:string)=>void}) {
+export default function BracketBuilder({client,canEdit,onMessage,initialBracketId,onExit,onOpenEditor}:{client:any;canEdit:boolean;onMessage:(s:string)=>void;initialBracketId?:string;onExit?:()=>void;onOpenEditor?:(id:string)=>void}) {
  const [categories,setCategories]=useState<Category[]>([]);
  const [athletes,setAthletes]=useState<Athlete[]>([]);
  const [registrations,setRegistrations]=useState<Registration[]>([]);
  const [weighIns,setWeighIns]=useState<WeighIn[]>([]);
  const [brackets,setBrackets]=useState<Bracket[]>([]);
  const [selectedCategory,setSelectedCategory]=useState("");
- const [selectedBracket,setSelectedBracket]=useState("");
+ const [selectedBracket,setSelectedBracket]=useState(initialBracketId||"");
  const [selectedAthletes,setSelectedAthletes]=useState<string[]>([]);
  const [format,setFormat]=useState<"single"|"double"|"rr">("single");
  const [bracketName,setBracketName]=useState("");
@@ -65,8 +65,9 @@ export default function BracketBuilder({client,canEdit,onMessage}:{client:any;ca
   setBusy(false);
  }
  useEffect(()=>{void reload()},[]);
+ useEffect(()=>{if(initialBracketId)void openBracket(initialBracketId)},[initialBracketId]);
  async function openBracket(id:string){
-  setSelectedBracket(id);setBusy(true);
+  setSelectedBracket(id);if(onOpenEditor&&!initialBracketId)onOpenEditor(id);setBusy(true);
   const [{data,error},{data:events,error:eventError}]=await Promise.all([
    client.from("matches").select("*").eq("bracket_id",id).order("round_no").order("match_no"),
    client.from("match_change_log").select("id,match_id,action,old_data,new_data,changed_at,changed_by").eq("bracket_id",id).order("changed_at",{ascending:false}).limit(100)
@@ -234,7 +235,7 @@ export default function BracketBuilder({client,canEdit,onMessage}:{client:any;ca
  const athleteName=(id:string|null)=>id?(athleteMap.get(id)?athleteMap.get(id)!.last_name+" "+athleteMap.get(id)!.first_name:"Спортсмен"): "Ожидает соперника";
  return <section className="panel">
   <div className="section-title"><div><h2>Конструктор турнирных сеток</h2><p>Состав участников берётся из допущенных регистраций выбранной весовой категории.</p></div><button className="secondary" onClick={()=>void reload()} disabled={busy}><RefreshCw size={15}/> Обновить</button></div>
-  {canEdit&&<div className="form-grid management-form">
+  {!initialBracketId&&canEdit&&<div className="form-grid management-form">
    <label className="full">Весовая категория<select value={selectedCategory} onChange={e=>{setSelectedCategory(e.target.value);setSelectedAthletes([])}}><option value="">Выберите категорию</option>{categories.map(c=><option key={c.id} value={c.id}>{c.name} · {c.gender==="male"?"мужчины":c.gender==="female"?"женщины":"открытая"} · {c.hand==="right"?"правая":c.hand==="left"?"левая":"обе"} рука</option>)}</select></label>
    <label>Формат сетки<select value={format} onChange={e=>setFormat(e.target.value as "single"|"rr")}><option value="single">Олимпийская — одно поражение</option><option value="double">Двойное выбывание — два поражения</option><option value="rr">Круговая — каждый с каждым</option></select></label>
    <label>Название сетки<input value={bracketName} onChange={e=>setBracketName(e.target.value)} placeholder="Автоматически по категории"/></label>
@@ -243,10 +244,10 @@ export default function BracketBuilder({client,canEdit,onMessage}:{client:any;ca
    </div>
    <div className="full form-actions"><button className="primary" disabled={busy||selectedAthletes.length<2||!selectedCategory} onClick={()=>void createBracket()}><Plus size={16}/> Построить сетку</button></div>
   </div>}
-  <div className="section-title" style={{marginTop:24}}><div><h2>Сохранённые сетки</h2><p>Откройте сетку, чтобы вносить результаты и продвигать победителей.</p></div></div>
+  {!initialBracketId&&<><div className="section-title" style={{marginTop:24}}><div><h2>Сохранённые сетки</h2><p>Откройте сетку, чтобы вносить результаты и продвигать победителей.</p></div></div>
   <div className="application-list">{brackets.map(b=><div className={selectedBracket===b.id?"application-row selected":"application-row"} key={b.id}><button type="button" className="app-main" onClick={()=>void openBracket(b.id)}><b>{b.name}</b><span>{categories.find(c=>c.id===b.category_id)?.name||"Категория"} · {b.format==="rr"?"Круговая система":b.format==="double"?"Двойное выбывание":"Олимпийская"}</span></button><Trophy size={18}/>{canEdit&&<button type="button" className="icon-btn" title="В корзину" onClick={()=>void archiveBracket(b.id)}><Trash2 size={15}/></button>}</div>)}{!brackets.length&&<div className="empty"><b>Сеток пока нет</b><p>Создайте первую сетку выше.</p></div>}</div>
   <div className="match-history-tools"><button className="secondary" type="button" onClick={()=>setShowTrash(v=>!v)}><Trash2 size={14}/> {showTrash?"Скрыть корзину":"Корзина ("+archivedBrackets.length+")"}</button></div>{showTrash&&<section className="match-history"><h3>Корзина сеток</h3>{archivedBrackets.map(b=><div className="match-history-row" key={b.id}><b>{b.name}</b><span>Архивная сетка</span><button className="secondary" type="button" onClick={()=>void restoreBracket(b.id)}><RotateCcw size={14}/> Восстановить</button></div>)}{!archivedBrackets.length&&<p>Корзина пуста.</p>}</section>}
-  {selectedBracket&&<div className="match-history-tools"><button type="button" className="secondary" onClick={()=>void undoLastMatchChange()}><Undo2 size={14}/> Отменить</button><button type="button" className="secondary" disabled={!redoSnapshot} onClick={()=>void redoMatchChange()}><RotateCcw size={14}/> Повторить</button><button type="button" className="secondary" onClick={()=>setZoom(v=>Math.max(.6,v-.1))}><ZoomOut size={14}/></button><span className="zoom-label">{Math.round(zoom*100)}%</span><button type="button" className="secondary" onClick={()=>setZoom(v=>Math.min(1.6,v+.1))}><ZoomIn size={14}/></button><button type="button" className="secondary" onClick={exportBracketSvg}><ImageIcon size={14}/> SVG</button><button type="button" className="secondary" onClick={()=>void exportBracketPng()}><ImageIcon size={14}/> PNG</button><button type="button" className="secondary" onClick={()=>window.print()}><Printer size={14}/> Печать</button><button type="button" className="secondary" onClick={()=>setShowHistory(v=>!v)}><RefreshCw size={14}/>{showHistory?"Скрыть историю":"История изменений ("+matchEvents.length+")"}</button></div>}
+  </>}\n  {selectedBracket&&<div className="match-history-tools"><button type="button" className="secondary" onClick={()=>void undoLastMatchChange()}><Undo2 size={14}/> Отменить</button><button type="button" className="secondary" disabled={!redoSnapshot} onClick={()=>void redoMatchChange()}><RotateCcw size={14}/> Повторить</button><button type="button" className="secondary" onClick={()=>setZoom(v=>Math.max(.6,v-.1))}><ZoomOut size={14}/></button><span className="zoom-label">{Math.round(zoom*100)}%</span><button type="button" className="secondary" onClick={()=>setZoom(v=>Math.min(1.6,v+.1))}><ZoomIn size={14}/></button><button type="button" className="secondary" onClick={exportBracketSvg}><ImageIcon size={14}/> SVG</button><button type="button" className="secondary" onClick={()=>void exportBracketPng()}><ImageIcon size={14}/> PNG</button><button type="button" className="secondary" onClick={()=>window.print()}><Printer size={14}/> Печать</button><button type="button" className="secondary" onClick={()=>setShowHistory(v=>!v)}><RefreshCw size={14}/>{showHistory?"Скрыть историю":"История изменений ("+matchEvents.length+")"}</button></div>}
   {selectedBracket&&showHistory&&<section className="match-history"><h3>История изменений сетки</h3>{matchEvents.length?matchEvents.map(ev=>{
    const snapshot=ev.new_data||ev.old_data||{};
    const matchNo=matches.find(m=>m.id===ev.match_id)?.match_no??snapshot.match_no??"—";
