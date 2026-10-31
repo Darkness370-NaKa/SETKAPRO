@@ -64,10 +64,10 @@ export default function App() {
     const password = String(fd.get("password") || "");
     let error;
     if (mode === "signup") {
-      ({ error } = await supabase.auth.signUp({ email, password, options: { emailRedirectTo: window.location.origin } }));
+      ({ error } = await supabase.auth.signUp({ email, password, options: { emailRedirectTo: new URL(import.meta.env.BASE_URL, window.location.origin).toString() } }));
       if (!error) setMessage("Проверьте почту и подтвердите адрес. После подтверждения вы сможете войти.");
     } else if (mode === "reset") {
-      ({ error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin }));
+      ({ error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: new URL(import.meta.env.BASE_URL, window.location.origin).toString() }));
       if (!error) setMessage("Если адрес зарегистрирован, на него придёт письмо для сброса пароля.");
     } else {
       ({ error } = await supabase.auth.signInWithPassword({ email, password }));
