@@ -13,6 +13,7 @@ export type Tournament = {
   name: string;
   location: string | null;
   starts_at: string | null;
+  ends_at: string | null;
   status: "draft" | "published" | "registration_closed" | "completed";
 };
 
