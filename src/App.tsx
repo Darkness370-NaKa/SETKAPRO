@@ -100,7 +100,8 @@ export default function App() {
   async function createTournament(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!supabase || !user || !["SUPER_ADMIN","ADMIN","ORGANIZER"].includes(role)) return;
-    const fd = new FormData(e.currentTarget);
+    const form = e.currentTarget;
+    const fd = new FormData(form);
     const starts = String(fd.get("starts_at") || "");
     const ends = String(fd.get("ends_at") || "");
     const name = String(fd.get("name") || "").trim();
@@ -122,7 +123,7 @@ export default function App() {
       setMessage(editingTournamentId ? "Изменения турнира сохранены." : "Турнир создан.");
       setEditingTournamentId(null);
       setShowTournamentForm(false);
-      (e.currentTarget as HTMLFormElement).reset();
+      form.reset();
       await loadUserData();
     }
     setBusy(false);
