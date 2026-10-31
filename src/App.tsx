@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { Activity, ArrowRight, CheckCircle2, ClipboardList, LogOut, Plus, ShieldCheck, Trophy, UserRound, Users } from "lucide-react";
+import { Activity, ArrowRight, CheckCircle2, ClipboardList, Download, LogOut, Plus, ShieldCheck, Trophy, UserRound, Users } from "lucide-react";
 import { isSupabaseConfigured, supabase } from "./supabase";
 import type { AppRole, ParticipationApplication, Tournament } from "./types";
 import Management from "./Management";
@@ -26,6 +26,7 @@ export default function App() {
   const [busy, setBusy] = useState(false);
   const [managedUsers, setManagedUsers] = useState<ManagedUser[]>([]);
   const [showTournamentForm, setShowTournamentForm] = useState(false);
+  const [editingTournamentId, setEditingTournamentId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!supabase) { setLoading(false); return; }
@@ -104,6 +105,17 @@ export default function App() {
       await loadUserData();
     }
     setBusy(false);
+  }
+
+  async function exportTournamentData() {
+    if (!supabase) return;
+    setBusy(true);
+    const tables = ['tournaments','athletes','clubs','registrations','participation_applications','weigh_ins','tournament_categories','brackets','matches'];
+    const data: Record<string, unknown[]> = {};
+    for (const table of tables) { const result = await supabase.from(table).select('*'); if (result.error) { setMessage(result.error.message); setBusy(false); return; } data[table] = result.data || []; }
+    const blob = new Blob([JSON.stringify({format:'SETKA_PRO_BACKUP',version:1,exported_at:new Date().toISOString(),data},null,2)],{type:'application/json'});
+    const url = URL.createObjectURL(blob); const link = document.createElement('a'); link.href=url; link.download='setka-pro-backup.json'; link.click(); URL.revokeObjectURL(url);
+    setMessage('Резервная копия скачана.'); setBusy(false);
   }
 
   async function submitApplication(e: FormEvent<HTMLFormElement>) {
