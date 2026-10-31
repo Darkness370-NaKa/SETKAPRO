@@ -103,17 +103,18 @@ export default function App() {
     const fd = new FormData(e.currentTarget);
     const starts = String(fd.get("starts_at") || "");
     const ends = String(fd.get("ends_at") || "");
-    const payload = {
-      name: String(fd.get("name") || "").trim(),
-      location: String(fd.get("location") || "").trim() || null,
-      starts_at: starts ? new Date(starts).toISOString() : null,
-      ends_at: ends ? new Date(ends).toISOString() : null,
-      status: String(fd.get("status") || "draft"),
-    };
-    if (!payload.name) { setMessage("Укажите название турнира."); return; }
+    const name = String(fd.get("name") || "").trim();
+    const location = String(fd.get("location") || "").trim() || null;
+    const status = String(fd.get("status") || "draft");
+    if (!name) { setMessage("Укажите название турнира."); return; }
     if (starts && Number.isNaN(Date.parse(starts))) { setMessage("Проверьте дату начала турнира."); return; }
     if (ends && Number.isNaN(Date.parse(ends))) { setMessage("Проверьте дату окончания турнира."); return; }
     if (starts && ends && new Date(ends).getTime() < new Date(starts).getTime()) { setMessage("Окончание турнира не может быть раньше его начала."); return; }
+    const payload = {
+      name, location, status,
+      starts_at: starts ? new Date(starts).toISOString() : null,
+      ends_at: ends ? new Date(ends).toISOString() : null,
+    };
     setBusy(true); setMessage("");
     const { error } = editingTournamentId ? await supabase.from("tournaments").update(payload).eq("id", editingTournamentId) : await supabase.from("tournaments").insert({ ...payload, created_by: user.id });
     if (error) setMessage("Не удалось создать турнир: " + error.message);
