@@ -120,6 +120,20 @@ export default function BracketBuilder({client,canEdit,onMessage,initialBracketI
    }
   }
  }
+ async function propagateInitialByes(rows:any[]){
+  for(const match of rows.filter(row=>row.status==="bye"&&row.winner_id&&row.next_match_id&&row.next_slot)){
+   const {data:target,error:readError}=await client.from("matches").select("id,"+match.next_slot).eq("id",match.next_match_id).maybeSingle();
+   if(readError)return "Не удалось проверить следующий матч после прохода: "+readError.message;
+   if(!target)return "Не найден следующий матч после автоматического прохода.";
+   const current=target[match.next_slot];
+   if(current&&current!==match.winner_id)return "В следующем матче уже указан другой спортсмен.";
+   if(!current){
+    const {error}=await client.from("matches").update({[match.next_slot]:match.winner_id}).eq("id",match.next_match_id);
+    if(error)return "Не удалось перенести спортсмена после автоматического прохода: "+error.message;
+   }
+  }
+  return null;
+ }
  function shuffleAthletes(){setSelectedAthletes(prev=>{const next=[...prev];for(let i=next.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[next[i],next[j]]=[next[j],next[i]]}return next})}
  async function archiveBracket(id:string){if(!canEdit||!confirm("Переместить сетку в корзину? Матчи и результаты сохранятся."))return;const {error}=await client.from("brackets").update({archived_at:new Date().toISOString()}).eq("id",id);if(error){onMessage(error.message);return}if(selectedBracket===id){setSelectedBracket("");setMatches([])}onMessage("Сетка перемещена в корзину.");await reload()}
  async function restoreBracket(id:string){const {error}=await client.from("brackets").update({archived_at:null}).eq("id",id);if(error){onMessage(error.message);return}onMessage("Сетка восстановлена.");await reload()}
@@ -137,6 +151,8 @@ export default function BracketBuilder({client,canEdit,onMessage,initialBracketI
   const rows=sourceMatches.map((m:any)=>({id:idMap.get(m.id),bracket_id:copy.id,round_no:m.round_no,match_no:m.match_no,bracket_side:m.bracket_side,athlete_a_id:m.athlete_a_id,athlete_b_id:m.athlete_b_id,score_a:null,score_b:null,status:m.status==="bye"&&Boolean(m.athlete_a_id)!==Boolean(m.athlete_b_id)?"bye":"pending",winner_id:m.status==="bye"?(m.athlete_a_id||m.athlete_b_id||null):null,fouls_a:0,fouls_b:0,remarks_a:0,remarks_b:0,finish_reason:null,next_match_id:m.next_match_id?idMap.get(m.next_match_id)||null:null,next_slot:m.next_slot,loser_next_match_id:m.loser_next_match_id?idMap.get(m.loser_next_match_id)||null:null,loser_next_slot:m.loser_next_slot}));
   const {error:insertError}=await client.from("matches").insert(rows);
   if(insertError){await client.from("brackets").delete().eq("id",copy.id);onMessage("Не удалось скопировать матчи: "+insertError.message);setBusy(false);return}
+  const byeError=await propagateInitialByes(rows);
+  if(byeError){onMessage(byeError);setBusy(false);return}
   await resolveAutomaticByes(copy.id);
   onMessage("Копия сетки создана без результатов.");await reload();await openBracket(copy.id);
  }
@@ -225,11 +241,10 @@ export default function BracketBuilder({client,canEdit,onMessage,initialBracketI
   }
   const {error:matchError}=await client.from("matches").insert(rows);
   if(matchError){await client.from("brackets").delete().eq("id",created.id);onMessage("Не удалось построить матчи: "+matchError.message+" (если это двойное выбывание, выполните миграцию 005).");setBusy(false);return}
-  // Propagate automatic byes through the winners bracket.
+  // Propagate first-round byes before resolving dependent losers-bracket passes.
   if(format!=="rr"){
-   for(const match of rows.filter(r=>r.status==="bye"&&r.winner_id)){
-    if(match.next_match_id&&match.next_slot)await client.from("matches").update({[match.next_slot]:match.winner_id}).eq("id",match.next_match_id);
-   }
+   const byeError=await propagateInitialByes(rows);
+   if(byeError){onMessage(byeError);setBusy(false);return}
   }
   await resolveAutomaticByes(created.id);
   onMessage("Сетка создана. Можно проводить матчи и вносить результаты.");
