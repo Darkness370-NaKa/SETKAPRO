@@ -12,9 +12,11 @@ create table if not exists public.match_change_log (
 create index if not exists match_change_log_match_changed_idx on public.match_change_log(match_id, changed_at desc);
 create index if not exists match_change_log_bracket_changed_idx on public.match_change_log(bracket_id, changed_at desc);
 alter table public.match_change_log enable row level security;
+drop policy if exists "match_change_log_select_staff" on public.match_change_log;
 create policy "match_change_log_select_staff" on public.match_change_log
  for select to authenticated
  using (public.has_any_role(array['SUPER_ADMIN','ADMIN','ORGANIZER','SECRETARY','CHIEF_JUDGE','JUDGE']));
+drop policy if exists "match_change_log_insert_staff" on public.match_change_log;
 create policy "match_change_log_insert_staff" on public.match_change_log
  for insert to authenticated
  with check (public.has_any_role(array['SUPER_ADMIN','ADMIN','ORGANIZER','SECRETARY','CHIEF_JUDGE','JUDGE']));
