@@ -45,7 +45,7 @@ export default function App() {
     if (!supabase || !user) return;
     const [{ data: roleData }, { data: tournamentData }, { data: appData }] = await Promise.all([
       supabase.from("user_roles").select("role").eq("user_id", user.id),
-      supabase.from("tournaments").select("id,name,location,starts_at,status").order("starts_at"),
+      supabase.from("tournaments").select("id,name,location,starts_at,ends_at,status").order("starts_at"),
       supabase.from("participation_applications").select("*,tournaments(name)").order("created_at", { ascending: false })
     ]);
     const roles = (roleData ?? []).map(x => x.role as AppRole);
