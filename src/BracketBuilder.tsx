@@ -338,7 +338,12 @@ export default function BracketBuilder({client,canEdit,onMessage,initialBracketI
   if(aId&&aId===bId){onMessage("Один спортсмен не может занимать оба места в матче.");return}
   const duplicate=matches.find(m=>m.id!==match.id&&[m.athlete_a_id,m.athlete_b_id].some(id=>id&&(id===aId||id===bId)));
   if(duplicate){onMessage("Этот спортсмен уже назначен в другой блок этой сетки. Сначала освободите его там.");return}
-  if(match.status==="completed"&&!confirm("Матч уже завершён. Изменение участников сбросит его результат, но не будет автоматически пересчитывать последующие матчи. Продолжить?"))return;
+  if(match.status==="completed"&&!confirm("Матч уже завершён. Изменить участников можно только если последующие матчи ещё не получили результаты или автоматические проходы."))return;
+  if(match.status==="completed"){
+   const descendants=await hasResolvedDescendants(match);
+   if(descendants.error){onMessage("Не удалось проверить следующие матчи: "+descendants.error);return}
+   if(descendants.blocked){onMessage("Нельзя менять участников: в последующих матчах уже есть результаты или автоматические проходы. Сначала сбросьте их.");return}
+  }
   setBusy(true);
   if(match.status==="completed"){
    const winner=match.winner_id;const loser=winner?(winner===match.athlete_a_id?match.athlete_b_id:match.athlete_a_id):null;
