@@ -5,7 +5,7 @@ type Category = { id:string; tournament_id:string; name:string; format:string; g
 type Athlete = { id:string; first_name:string; last_name:string; gender:string; birth_date:string|null; club_id:string|null };
 type Registration = { id:string; athlete_id:string; tournament_id:string; hand:string; status:string };
 type WeighIn = { id:string; registration_id:string; weight:number; measured_at:string };
-type Match = { id:string; round_no:number; match_no:number; athlete_a_id:string|null; athlete_b_id:string|null; score_a:number|null; score_b:number|null; winner_id:string|null; status:string; bracket_side:string; next_match_id:string|null; next_slot:"athlete_a_id"|"athlete_b_id"|null; loser_next_match_id:string|null; loser_next_slot:"athlete_a_id"|"athlete_b_id"|null };
+type Match = { id:string; round_no:number; match_no:number; athlete_a_id:string|null; athlete_b_id:string|null; score_a:number|null; score_b:number|null; winner_id:string|null; status:string; fouls_a:number; fouls_b:number; remarks_a:number; remarks_b:number; finish_reason:string|null; bracket_side:string; next_match_id:string|null; next_slot:"athlete_a_id"|"athlete_b_id"|null; loser_next_match_id:string|null; loser_next_slot:"athlete_a_id"|"athlete_b_id"|null };
 type Bracket = { id:string; name:string; category_id:string; format:string };
 
 export default function BracketBuilder({client,canEdit,onMessage}:{client:any;canEdit:boolean;onMessage:(s:string)=>void}) {
@@ -147,6 +147,35 @@ export default function BracketBuilder({client,canEdit,onMessage}:{client:any;ca
   onMessage("Сетка создана. Можно проводить матчи и вносить результаты.");
   setBracketName("");setSelectedBracket(created.id);await reload();await openBracket(created.id);
  }
+ async function recordViolation(match:Match,side:"a"|"b",kind:"foul"|"remark"){
+  if(!canEdit||match.status==="completed"||!match.athlete_a_id||!match.athlete_b_id)return;
+  const foulKey=side==="a"?"fouls_a":"fouls_b";
+  const remarkKey=side==="a"?"remarks_a":"remarks_b";
+  const currentFouls=Number(match[foulKey]||0);
+  const currentRemarks=Number(match[remarkKey]||0);
+  const nextRemarks=kind==="remark"?(currentRemarks+1)%2:0;
+  const addsFoul=kind==="foul"||currentRemarks+1>=2;
+  const nextFouls=currentFouls+(addsFoul?1:0);
+  const updates:any={[remarkKey]:nextRemarks,[foulKey]:nextFouls};
+  let winnerId:string|null=null;
+  if(nextFouls>=2){winnerId=side==="a"?match.athlete_b_id:match.athlete_a_id;updates.winner_id=winnerId;updates.status="completed";updates.finish_reason="fouls";}
+  setBusy(true);
+  const {error}=await client.from("matches").update(updates).eq("id",match.id);
+  if(error){onMessage("Не удалось записать нарушение: "+error.message);setBusy(false);return}
+  if(winnerId){
+   const loserId=side==="a"?match.athlete_a_id:match.athlete_b_id;
+   if(match.next_match_id&&match.next_slot)await client.from("matches").update({[match.next_slot]:winnerId}).eq("id",match.next_match_id);
+   if(match.loser_next_match_id&&match.loser_next_slot)await client.from("matches").update({[match.loser_next_slot]:loserId}).eq("id",match.loser_next_match_id);
+   if(match.bracket_side==="grand_final"&&winnerId===match.athlete_b_id){
+    const {data}=await client.from("matches").select("*").eq("bracket_id",selectedBracket).eq("bracket_side","reset_final").limit(1);
+    if(data?.[0])await client.from("matches").update({athlete_a_id:match.athlete_a_id,athlete_b_id:match.athlete_b_id,status:"pending"}).eq("id",data[0].id);
+   }
+   onMessage("Второй фол. Победа присуждена сопернику.");
+  }else onMessage(kind==="remark"?(addsFoul?"Два замечания преобразованы в один фол.":"Замечание записано."):"Фол записан.");
+  const {data,error:loadError}=await client.from("matches").select("*").eq("bracket_id",selectedBracket).order("round_no").order("match_no");
+  if(loadError)onMessage(loadError.message);else setMatches(data||[]);
+  setBusy(false);
+ }
  async function saveWinner(match:Match,winnerId:string,scoreA:string,scoreB:string){
   if(!canEdit||!winnerId)return;
   const a=Number(scoreA),b=Number(scoreB);
@@ -191,13 +220,13 @@ export default function BracketBuilder({client,canEdit,onMessage}:{client:any;ca
   </div>}
   <div className="section-title" style={{marginTop:24}}><div><h2>Сохранённые сетки</h2><p>Откройте сетку, чтобы вносить результаты и продвигать победителей.</p></div></div>
   <div className="application-list">{brackets.map(b=><button type="button" className={selectedBracket===b.id?"application-row selected":"application-row"} key={b.id} onClick={()=>void openBracket(b.id)}><div className="app-main"><b>{b.name}</b><span>{categories.find(c=>c.id===b.category_id)?.name||"Категория"} · {b.format==="rr"?"Круговая система":b.format==="double"?"Двойное выбывание":"Олимпийская"}</span></div><Trophy size={18}/></button>)}{!brackets.length&&<div className="empty"><b>Сеток пока нет</b><p>Создайте первую сетку выше.</p></div>}</div>
-  {selectedBracket&&<div className="bracket-rounds">{rounds.map(round=><section className="bracket-round" key={round}><h3>{roundTitle(round)}</h3>{visibleMatches.filter(m=>m.round_no===round).map(match=><MatchCard key={match.id} match={match} athleteName={athleteName} canEdit={canEdit&&match.athlete_a_id!==null&&match.athlete_b_id!==null} busy={busy} onSave={saveWinner}/>)}</section>)}</div>}
+  {selectedBracket&&<div className="bracket-rounds">{rounds.map(round=><section className="bracket-round" key={round}><h3>{roundTitle(round)}</h3>{visibleMatches.filter(m=>m.round_no===round).map(match=><MatchCard key={match.id} match={match} athleteName={athleteName} canEdit={canEdit&&match.athlete_a_id!==null&&match.athlete_b_id!==null} busy={busy} onSave={saveWinner} onViolation={recordViolation}/>)}</section>)}</div>}
  </section>;
 }
-function MatchCard({match,athleteName,canEdit,busy,onSave}:{match:Match;athleteName:(id:string|null)=>string;canEdit:boolean;busy:boolean;onSave:(m:Match,w:string,a:string,b:string)=>void}){
+function MatchCard({match,athleteName,canEdit,busy,onSave,onViolation}:{match:Match;athleteName:(id:string|null)=>string;canEdit:boolean;busy:boolean;onSave:(m:Match,w:string,a:string,b:string)=>void;onViolation:(m:Match,side:"a"|"b",kind:"foul"|"remark")=>void}){
  const [scoreA,setScoreA]=useState(match.score_a===null?"":String(match.score_a));
  const [scoreB,setScoreB]=useState(match.score_b===null?"":String(match.score_b));
  const [winner,setWinner]=useState(match.winner_id||"");
  useEffect(()=>{setScoreA(match.score_a===null?"":String(match.score_a));setScoreB(match.score_b===null?"":String(match.score_b));setWinner(match.winner_id||"")},[match]);
- return <div className="match-card"><div className="match-number">Матч {match.match_no} {match.status==="bye"?"· проход без боя":""}</div><div className={match.winner_id===match.athlete_a_id?"match-athlete winner":"match-athlete"}>{athleteName(match.athlete_a_id)} <b>{match.score_a??"—"}</b></div><div className={match.winner_id===match.athlete_b_id?"match-athlete winner":"match-athlete"}>{athleteName(match.athlete_b_id)} <b>{match.score_b??"—"}</b></div>{canEdit&&match.athlete_a_id&&match.athlete_b_id&&<div className="match-edit"><input aria-label="Счёт первого спортсмена" type="number" min="0" value={scoreA} onChange={e=>setScoreA(e.target.value)}/><input aria-label="Счёт второго спортсмена" type="number" min="0" value={scoreB} onChange={e=>setScoreB(e.target.value)}/><select aria-label="Победитель" value={winner} onChange={e=>setWinner(e.target.value)}><option value="">Победитель</option><option value={match.athlete_a_id}>{athleteName(match.athlete_a_id)}</option><option value={match.athlete_b_id}>{athleteName(match.athlete_b_id)}</option></select><button className="primary" disabled={busy||!winner} onClick={()=>onSave(match,winner,scoreA,scoreB)}>Сохранить</button></div>}</div>;
+ return <div className="match-card"><div className="match-number">Матч {match.match_no} {match.status==="bye"?"· проход без боя":""} {match.finish_reason==="fouls"?"· победа по фолам":""}</div><div className={match.winner_id===match.athlete_a_id?"match-athlete winner":"match-athlete"}>{athleteName(match.athlete_a_id)} <b>{match.score_a??"—"}</b><small className="match-penalties">Фолы: {match.fouls_a||0} · Замечания: {match.remarks_a||0}/2</small></div><div className={match.winner_id===match.athlete_b_id?"match-athlete winner":"match-athlete"}>{athleteName(match.athlete_b_id)} <b>{match.score_b??"—"}</b><small className="match-penalties">Фолы: {match.fouls_b||0} · Замечания: {match.remarks_b||0}/2</small></div>{canEdit&&match.athlete_a_id&&match.athlete_b_id&&<div className="match-violations"><div><button type="button" className="secondary" disabled={busy} onClick={()=>onViolation(match,"a","foul")}>Фол А</button><button type="button" className="secondary" disabled={busy} onClick={()=>onViolation(match,"a","remark")}>Замечание А</button></div><div><button type="button" className="secondary" disabled={busy} onClick={()=>onViolation(match,"b","foul")}>Фол Б</button><button type="button" className="secondary" disabled={busy} onClick={()=>onViolation(match,"b","remark")}>Замечание Б</button></div></div><div className="match-edit"><input aria-label="Счёт первого спортсмена" type="number" min="0" value={scoreA} onChange={e=>setScoreA(e.target.value)}/><input aria-label="Счёт второго спортсмена" type="number" min="0" value={scoreB} onChange={e=>setScoreB(e.target.value)}/><select aria-label="Победитель" value={winner} onChange={e=>setWinner(e.target.value)}><option value="">Победитель</option><option value={match.athlete_a_id}>{athleteName(match.athlete_a_id)}</option><option value={match.athlete_b_id}>{athleteName(match.athlete_b_id)}</option></select><button className="primary" disabled={busy||!winner} onClick={()=>onSave(match,winner,scoreA,scoreB)}>Сохранить</button></div>}</div>;
 }
