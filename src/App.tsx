@@ -95,6 +95,9 @@ export default function App() {
       status: String(fd.get("status") || "draft"),
     };
     if (!payload.name) { setMessage("Укажите название турнира."); return; }
+    if (starts && Number.isNaN(Date.parse(starts))) { setMessage("Проверьте дату начала турнира."); return; }
+    if (ends && Number.isNaN(Date.parse(ends))) { setMessage("Проверьте дату окончания турнира."); return; }
+    if (starts && ends && new Date(ends).getTime() < new Date(starts).getTime()) { setMessage("Окончание турнира не может быть раньше его начала."); return; }
     setBusy(true); setMessage("");
     const { error } = editingTournamentId ? await supabase.from("tournaments").update(payload).eq("id", editingTournamentId) : await supabase.from("tournaments").insert({ ...payload, created_by: user.id });
     if (error) setMessage("Не удалось создать турнир: " + error.message);
@@ -201,15 +204,15 @@ export default function App() {
             {showTournamentForm && ["SUPER_ADMIN","ADMIN","ORGANIZER"].includes(role) && <form className="form-grid" key={editingTournamentId || "new"} onSubmit={createTournament}>
               <label className="full">Название турнира<input name="name" required maxLength={180} defaultValue={tournaments.find(t => t.id === editingTournamentId)?.name || ""} placeholder="Например, Кубок города по армрестлингу"/></label>
               <label className="full">Место проведения<input name="location" maxLength={180} defaultValue={tournaments.find(t => t.id === editingTournamentId)?.location || ""} placeholder="Город, спортивный комплекс"/></label>
-              <label>Начало турнира<input name="starts_at" type="datetime-local"/></label>
-              <label>Окончание турнира<input name="ends_at" type="datetime-local"/></label>
-              <label>Статус при создании<select name="status"><option value="draft">Черновик</option><option value="published">Опубликован — открыт для заявок</option></select></label>
+              <label>Начало турнира<input name="starts_at" type="datetime-local" defaultValue={localDateTimeValue(tournaments.find(t => t.id === editingTournamentId)?.starts_at || null)}/></label>
+              <label>Окончание турнира<input name="ends_at" type="datetime-local" defaultValue={localDateTimeValue(tournaments.find(t => t.id === editingTournamentId)?.ends_at || null)}/></label>
+              <label>Статус турнира<select name="status" defaultValue={tournaments.find(t => t.id === editingTournamentId)?.status || "draft"}><option value="draft">Черновик</option><option value="published">Опубликован — открыт для заявок</option><option value="registration_closed">Регистрация закрыта</option><option value="completed">Завершён</option></select></label>
               <div className="full form-actions"><button className="primary" disabled={busy}>{busy ? "Сохранение…" : editingTournamentId ? "Сохранить изменения" : "Создать турнир"}</button><button type="button" className="secondary" onClick={() => {setShowTournamentForm(false);setEditingTournamentId(null);}}>Отмена</button></div>
               <p className="full">Выберите «Черновик» для подготовки или «Опубликован», чтобы сразу открыть турнир в каталоге для заявок.</p>
             </form>}
           </section>
           <section className="dashboard-stats"><article><span>Всего турниров</span><b>{tournaments.length}</b></article><article><span>Опубликовано</span><b>{tournaments.filter(t => t.status === "published").length}</b></article><article><span>Заявки</span><b>{applications.length}</b></article><article><span>Ожидают решения</span><b>{applications.filter(a => a.status === "pending").length}</b></article></section><section className="cards">
-            {tournaments.length ? tournaments.map(t => <article className="tournament-card" key={t.id}><div className="card-top"><span className="tag">{t.status === "draft" ? "ЧЕРНОВИК" : t.status === "completed" ? "ЗАВЕРШЁН" : t.status === "registration_closed" ? "РЕГИСТРАЦИЯ ЗАКРЫТА" : "ОТКРЫТАЯ ИНФОРМАЦИЯ"}</span><Trophy size={20}/></div><h2>{t.name}</h2><p>{t.location || "Место проведения уточняется"}</p><div className="card-bottom"><span>{t.starts_at ? new Date(t.starts_at).toLocaleDateString("ru-RU") : "Дата уточняется"}</span>{["SUPER_ADMIN","ADMIN","ORGANIZER"].includes(role) && <button className="icon-btn" title="Редактирование доступно в управлении турнирами" disabled><Pencil size={15}/></button>}{["SUPER_ADMIN","ADMIN","ORGANIZER"].includes(role) && <button className="icon-btn" title="Редактировать турнир" onClick={() => {setEditingTournamentId(t.id);setShowTournamentForm(true);}}><Pencil size={15}/></button>}{t.status === "published" && <button className="text-btn" onClick={() => {setSelectedTournament(t.id);setTab("apply");}}>Подать заявку <ArrowRight size={15}/></button>}</div></article>) : <Empty title="Пока нет турниров" text={["SUPER_ADMIN","ADMIN","ORGANIZER"].includes(role) ? "Создайте первый турнир кнопкой выше." : "Когда организатор опубликует турнир, он появится здесь."}/>}
+            {tournaments.length ? tournaments.map(t => <article className="tournament-card" key={t.id}><div className="card-top"><span className="tag">{t.status === "draft" ? "ЧЕРНОВИК" : t.status === "completed" ? "ЗАВЕРШЁН" : t.status === "registration_closed" ? "РЕГИСТРАЦИЯ ЗАКРЫТА" : "ОТКРЫТАЯ ИНФОРМАЦИЯ"}</span><Trophy size={20}/></div><h2>{t.name}</h2><p>{t.location || "Место проведения уточняется"}</p><div className="card-bottom"><span>{t.starts_at ? new Date(t.starts_at).toLocaleDateString("ru-RU") : "Дата уточняется"}</span>{["SUPER_ADMIN","ADMIN","ORGANIZER"].includes(role) && <button className="icon-btn" title="Редактировать турнир" onClick={() => {setEditingTournamentId(t.id);setShowTournamentForm(true);}}><Pencil size={15}/></button>}{t.status === "published" && <button className="text-btn" onClick={() => {setSelectedTournament(t.id);setTab("apply");}}>Подать заявку <ArrowRight size={15}/></button>}</div></article>) : <Empty title="Пока нет турниров" text={["SUPER_ADMIN","ADMIN","ORGANIZER"].includes(role) ? "Создайте первый турнир кнопкой выше." : "Когда организатор опубликует турнир, он появится здесь."}/>}
           </section>
         </>}
         {tab === "apply" && <section className="panel"><div className="section-title"><div><h2>Заявка на участие</h2><p>Заполните данные спортсмена. Заявка поступит организаторам на рассмотрение.</p></div><span className="tag amber">НОВАЯ ЗАЯВКА</span></div>
@@ -230,6 +233,14 @@ export default function App() {
       </main>
     </div>
   </div>;
+}
+
+function localDateTimeValue(value:string|null):string {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+  return local.toISOString().slice(0,16);
 }
 
 function ApplicationList({items}:{items:ParticipationApplication[]}) {
