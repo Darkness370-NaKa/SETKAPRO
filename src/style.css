@@ -27,3 +27,15 @@
 .bracket-round{min-width:270px}
 .match-card{min-width:250px}
 @media(max-width:620px){.manual-match-fields{grid-template-columns:1fr}.bracket-round{min-width:245px}}
+
+/* Full manual bracket constructor interactions */
+.match-card[draggable="true"]{cursor:grab}
+.match-card[draggable="true"]:active{cursor:grabbing}
+.match-card[draggable="true"]:hover{border-color:var(--accent,#c58b3c)}
+.match-links{display:grid;grid-template-columns:1fr auto;gap:7px;align-items:center;margin:9px 0;padding:8px;background:rgba(255,255,255,.025);border:1px solid var(--line);border-radius:7px}
+.match-links summary{grid-column:1/-1;cursor:pointer;color:var(--muted);font-size:11px}
+.match-links label{display:flex;flex-direction:column;gap:4px;font-size:10px;color:var(--muted)}
+.match-links select{min-width:0;max-width:100%;padding:7px;font-size:10px}
+.match-links button{grid-column:1/-1;justify-self:start}
+.bracket-round{padding:8px;border:1px dashed transparent;border-radius:9px;transition:border-color .15s,background .15s}
+.bracket-round:has(.match-card:hover){border-color:rgba(197,139,60,.25)}
