@@ -112,12 +112,12 @@ export default function App() {
   return <div className="shell">
     <header className="topbar">
       <div className="brand"><div className="brand-mark">S</div><div><b>SETKA <span>PRO</span></b><small>ARM WRESTLING MANAGEMENT</small></div></div>
-      <div className="userbox"><span className="avatar">{(user.email || "U").slice(0,1).toUpperCase()}</span><div><b>{user.email}</b><small>{roleNames[role]}</small></div><button className="icon-btn" title="Выйти" onClick={() => supabase.auth.signOut()}><LogOut size={17}/></button></div>
+      <div className="userbox"><span className="avatar">{(user.email || "U").slice(0,1).toUpperCase()}</span><div><b>{user.email}</b><small>{roleNames[role]}</small></div><button className="icon-btn" title="Выйти" onClick={() => { void supabase?.auth.signOut(); }}><LogOut size={17}/></button></div>
     </header>
     <div className="layout">
       <aside className="sidebar">
         <div className="side-caption">РАБОЧАЯ ОБЛАСТЬ</div>
-        {nav.map(item => <button key={item.id} className={`nav-item ${tab === item.id ? "active" : ""}`} onClick={() => setTab(item.id)}><item.icon size={18}/>{item.label}</button>)}
+        {nav.map(item => <button key={item.id} className={`nav-item ${tab === item.id ? "active" : ""}`} onClick={() => setTab(item.id as "tournaments" | "apply" | "applications" | "admin")}><item.icon size={18}/>{item.label}</button>)}
         <div className="side-foot"><ShieldCheck size={16}/> Доступ определяется серверными ролями</div>
       </aside>
       <main className="main">
