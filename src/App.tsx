@@ -116,7 +116,18 @@ export default function App() {
     setBusy(true);
     const tables = ['tournaments','athletes','clubs','registrations','participation_applications','weigh_ins','tournament_categories','brackets','matches'];
     const data: Record<string, unknown[]> = {};
-    for (const table of tables) { const result = await supabase.from(table).select('*'); if (result.error) { setMessage(result.error.message); setBusy(false); return; } data[table] = result.data || []; }
+    for (const table of tables) {
+      const allRows: unknown[] = [];
+      let offset = 0;
+      while (true) {
+        const result = await supabase.from(table).select("*").order("id").range(offset, offset + 999);
+        if (result.error) { setMessage("Не удалось экспортировать "+table+": "+result.error.message); setBusy(false); return; }
+        allRows.push(...(result.data || []));
+        if ((result.data || []).length < 1000) break;
+        offset += 1000;
+      }
+      data[table] = allRows;
+    }
     const blob = new Blob([JSON.stringify({format:'SETKA_PRO_BACKUP',version:1,exported_at:new Date().toISOString(),data},null,2)],{type:'application/json'});
     const url = URL.createObjectURL(blob); const link = document.createElement('a'); link.href=url; link.download='setka-pro-backup.json'; link.click(); URL.revokeObjectURL(url);
     setMessage('Резервная копия скачана.'); setBusy(false);
