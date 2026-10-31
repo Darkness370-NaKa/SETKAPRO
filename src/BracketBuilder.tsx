@@ -49,31 +49,41 @@ export default function BracketBuilder({client,canEdit,onMessage,initialBracketI
      return true;
    }).sort((a,b)=>a.last_name.localeCompare(b.last_name,"ru")||a.first_name.localeCompare(b.first_name,"ru"));
  },[category,athletes,registrations,weighIns]);
+ async function fetchAll(query:any){
+  const all:any[]=[];
+  for(let offset=0;;offset+=1000){
+   const {data,error}=await query.range(offset,offset+999);
+   if(error)return {data:null,error};
+   all.push(...(data||[]));
+   if((data||[]).length<1000)break;
+  }
+  return {data:all,error:null};
+ }
  async function reload(){
   setBusy(true);
-  const [c,a,r,b,w]=await Promise.all([
-   client.from("tournament_categories").select("*").order("name"),
-   client.from("athletes").select("*").order("last_name"),
-   client.from("registrations").select("*").eq("status","approved"),
-   client.from("brackets").select("*").is("archived_at",null).order("created_at",{ascending:false}),
-   client.from("weigh_ins").select("id,registration_id,weight,measured_at").order("measured_at",{ascending:false})
+  const [c,a,r,b,w,trash]=await Promise.all([
+   fetchAll(client.from("tournament_categories").select("*").order("name")),
+   fetchAll(client.from("athletes").select("*").order("last_name")),
+   fetchAll(client.from("registrations").select("*").eq("status","approved")),
+   fetchAll(client.from("brackets").select("*").is("archived_at",null).order("created_at",{ascending:false})),
+   fetchAll(client.from("weigh_ins").select("id,registration_id,weight,measured_at").order("measured_at",{ascending:false})),
+   fetchAll(client.from("brackets").select("*").not("archived_at","is",null).order("archived_at",{ascending:false}))
   ]);
-  const error=c.error||a.error||r.error||b.error||w.error;
+  const error=c.error||a.error||r.error||b.error||w.error||trash.error;
   if(error)onMessage("Не удалось загрузить данные конструктора: "+error.message);
-  setCategories(c.data||[]);setAthletes(a.data||[]);setRegistrations(r.data||[]);setBrackets(b.data||[]);setWeighIns(w.data||[]);
-  const {data:trash}=await client.from("brackets").select("*").not("archived_at","is",null).order("archived_at",{ascending:false});setArchivedBrackets(trash||[]);
+  setCategories(c.data||[]);setAthletes(a.data||[]);setRegistrations(r.data||[]);setBrackets(b.data||[]);setWeighIns(w.data||[]);setArchivedBrackets(trash.data||[]);
   setBusy(false);
  }
  useEffect(()=>{void reload()},[]);
  useEffect(()=>{if(initialBracketId)void openBracket(initialBracketId)},[initialBracketId]);
  async function openBracket(id:string){
   setSelectedBracket(id);if(onOpenEditor&&!initialBracketId)onOpenEditor(id);setBusy(true);
-  const [{data,error},{data:events,error:eventError}]=await Promise.all([
-   client.from("matches").select("*").eq("bracket_id",id).order("round_no").order("match_no"),
+  const [matchResult,eventResult]=await Promise.all([
+   fetchAll(client.from("matches").select("*").eq("bracket_id",id).order("round_no").order("match_no")),
    client.from("match_change_log").select("id,match_id,action,old_data,new_data,changed_at,changed_by").eq("bracket_id",id).order("changed_at",{ascending:false}).limit(100)
   ]);
-  if(error)onMessage(error.message);else setMatches(data||[]);
-  if(eventError)onMessage("Не удалось загрузить историю: "+eventError.message);else setMatchEvents(events||[]);
+  if(matchResult.error)onMessage(matchResult.error.message);else setMatches(matchResult.data||[]);
+  if(eventResult.error)onMessage("Не удалось загрузить историю: "+eventResult.error.message);else setMatchEvents(eventResult.data||[]);
   setShowHistory(false);
   setBusy(false);
  }
