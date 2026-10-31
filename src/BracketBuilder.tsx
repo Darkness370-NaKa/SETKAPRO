@@ -88,9 +88,9 @@ export default function BracketBuilder({client,canEdit,onMessage,initialBracketI
   setBusy(false);
  }
  async function resolveAutomaticByes(bracketId:string){
-  const {data,error}=await client.from("matches").select("*").eq("bracket_id",bracketId);
-  if(error){onMessage("Не удалось проверить автоматические проходы: "+error.message);return}
-  const graph:any[]=[...(data||[])];
+  const result=await fetchAll(client.from("matches").select("*").eq("bracket_id",bracketId));
+  if(result.error){onMessage("Не удалось проверить автоматические проходы: "+result.error.message);return}
+  const graph:any[]=[...(result.data||[])];
   let changed=true,passes=0;
   while(changed&&passes++<graph.length+1){
    changed=false;
@@ -160,7 +160,9 @@ export default function BracketBuilder({client,canEdit,onMessage,initialBracketI
   if(!source)return;
   if(!confirm("Создать копию сетки? Участники и структура сохранятся, результаты и нарушения будут очищены."))return;
   setBusy(true);
-  const {data:sourceMatches,error:readError}=await client.from("matches").select("*").eq("bracket_id",id).order("round_no").order("match_no");
+  const sourceResult=await fetchAll(client.from("matches").select("*").eq("bracket_id",id).order("round_no").order("match_no"));
+  const sourceMatches=sourceResult.data;
+  const readError=sourceResult.error;
   if(readError||!sourceMatches){onMessage("Не удалось прочитать исходную сетку: "+(readError?.message||"ошибка"));setBusy(false);return}
   const {data:copy,error}=await client.from("brackets").insert({name:source.name+" — копия",category_id:source.category_id,format:source.format}).select("*").single();
   if(error||!copy){onMessage("Не удалось создать копию: "+(error?.message||"ошибка"));setBusy(false);return}
