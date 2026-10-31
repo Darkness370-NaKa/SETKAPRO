@@ -131,25 +131,35 @@ export default function App() {
   }
 
   async function exportTournamentData() {
-    if (!supabase) return;
+    if (!supabase || busy) return;
     setBusy(true);
-    const tables = ['tournaments','athletes','clubs','registrations','participation_applications','weigh_ins','tournament_categories','brackets','matches','match_change_log'];
-    const data: Record<string, unknown[]> = {};
-    for (const table of tables) {
-      const allRows: unknown[] = [];
-      let offset = 0;
-      while (true) {
-        const result = await supabase.from(table).select("*").order("id").range(offset, offset + 999);
-        if (result.error) { setMessage("Не удалось экспортировать "+table+": "+result.error.message); setBusy(false); return; }
-        allRows.push(...(result.data || []));
-        if ((result.data || []).length < 1000) break;
-        offset += 1000;
+    setMessage("Создаём резервную копию…");
+    try {
+      const tables = ['tournaments','athletes','clubs','registrations','participation_applications','weigh_ins','tournament_categories','brackets','matches','match_change_log'];
+      const data: Record<string, unknown[]> = {};
+      for (const table of tables) {
+        const allRows: unknown[] = [];
+        let offset = 0;
+        while (true) {
+          const result = await supabase.from(table).select("*").order("id").range(offset, offset + 999);
+          if (result.error) throw new Error("Не удалось экспортировать "+table+": "+result.error.message);
+          allRows.push(...(result.data || []));
+          if (!result.data || result.data.length < 1000) break;
+          offset += 1000;
+        }
+        data[table] = allRows;
       }
-      data[table] = allRows;
+      const blob = new Blob([JSON.stringify({format:'SETKA_PRO_BACKUP',version:1,exported_at:new Date().toISOString(),data},null,2)],{type:'application/json'});
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href=url; link.download='setka-pro-backup.json'; link.click();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+      setMessage('Резервная копия скачана.');
+    } catch (error: any) {
+      setMessage("Не удалось создать резервную копию: "+(error?.message || String(error)));
+    } finally {
+      setBusy(false);
     }
-    const blob = new Blob([JSON.stringify({format:'SETKA_PRO_BACKUP',version:1,exported_at:new Date().toISOString(),data},null,2)],{type:'application/json'});
-    const url = URL.createObjectURL(blob); const link = document.createElement('a'); link.href=url; link.download='setka-pro-backup.json'; link.click(); URL.revokeObjectURL(url);
-    setMessage('Резервная копия скачана.'); setBusy(false);
   }
 
   async function importTournamentBackup(file: File) {
@@ -175,8 +185,13 @@ export default function App() {
       }
       for (const key of Object.keys(backup.data)) {
         if (!allowed.has(key) || !Array.isArray(backup.data[key])) throw new Error("Некорректный раздел резервной копии: " + key);
-        if (backup.data[key].some((row: any) => !row || typeof row !== "object" || Array.isArray(row) || typeof row.id !== "string")) {
+        if (backup.data[key].some((row: any) => !row || typeof row !== "object" || Array.isArray(row) || typeof row.id !== "string" || !row.id.trim())) {
           throw new Error("В разделе " + key + " обнаружена запись без корректного ID.");
+        }
+        const ids = new Set<string>();
+        for (const row of backup.data[key]) {
+          if (ids.has(row.id)) throw new Error("В разделе " + key + " повторяется ID записи: " + row.id);
+          ids.add(row.id);
         }
       }
       let restored = 0;
