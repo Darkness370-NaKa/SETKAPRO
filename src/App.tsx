@@ -56,8 +56,8 @@ export default function App() {
     if (!supabase || !user) return;
     const [roleResult, tournamentResult, applicationResult] = await Promise.all([
       supabase.from("user_roles").select("role").eq("user_id", user.id),
-      fetchAllRows(supabase.from("tournaments").select("id,name,location,starts_at,ends_at,status").order("starts_at")),
-      fetchAllRows(supabase.from("participation_applications").select("*,tournaments(name)").order("created_at", { ascending: false }))
+      fetchAllRows(supabase.from("tournaments").select("id,name,location,starts_at,ends_at,status").order("starts_at").order("id")),
+      fetchAllRows(supabase.from("participation_applications").select("*,tournaments(name)").order("created_at", { ascending: false }).order("id"))
     ]);
     const loadError = roleResult.error || tournamentResult.error || applicationResult.error;
     if (loadError) {
