@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useState } from "react";
 import { Plus, RefreshCw, Trash2 } from "lucide-react";
+import BracketBuilder from "./BracketBuilder";
 
 type ModuleKey = "athletes" | "clubs" | "registration" | "weighin" | "categories" | "brackets";
 type Field = { name: string; label: string; type?: string; required?: boolean; options?: {value:string;label:string}[] };
@@ -29,6 +30,7 @@ const modules: Record<ModuleKey,{title:string;table:string;fields:Field[];column
  brackets:{title:"Сетки и результаты",table:"brackets",fields:[{name:"category_id",label:"ID категории",required:true},{name:"name",label:"Название сетки",required:true},{name:"format",label:"Формат",type:"select",options:[{value:"single",label:"Олимпийская"},{value:"double",label:"Двойное выбывание"},{value:"rr",label:"Круговая"}]}],columns:[{key:"name",label:"Сетка"},{key:"category_id",label:"Категория"},{key:"format",label:"Формат"},{key:"created_at",label:"Создана"}]}
 };
 export default function Management({client,module,canEdit,onMessage}:{client:any;module:ModuleKey;canEdit:boolean;onMessage:(s:string)=>void}) {
+ if(module==="brackets") return <BracketBuilder client={client} canEdit={canEdit} onMessage={onMessage}/>;
  const cfg=modules[module]; const [rows,setRows]=useState<any[]>([]); const [busy,setBusy]=useState(false); const [showForm,setShowForm]=useState(false);
  async function reload(){setBusy(true);const {data,error}=await client.from(cfg.table).select("*").order("created_at",{ascending:false});if(error)onMessage(error.message);else setRows(data||[]);setBusy(false)}
  useEffect(()=>{void reload()},[module]);
