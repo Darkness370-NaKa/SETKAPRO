@@ -78,6 +78,15 @@ export default function BracketBuilder({client,canEdit,onMessage}:{client:any;ca
   }
   const {error:matchError}=await client.from("matches").insert(rows);
   if(matchError){await client.from("brackets").delete().eq("id",created.id);onMessage("Не удалось построить матчи: "+matchError.message);setBusy(false);return}
+  if(format==="single"){
+   const {data:generated}=await client.from("matches").select("*").eq("bracket_id",created.id).order("round_no").order("match_no");
+   for(const match of generated||[]){
+    if(match.status==="bye"&&match.winner_id){
+     const next=(generated||[]).find((m:any)=>m.round_no===match.round_no+1&&m.match_no===Math.ceil(match.match_no/2));
+     if(next){const side=match.match_no%2===1?"athlete_a_id":"athlete_b_id";await client.from("matches").update({[side]:match.winner_id}).eq("id",next.id)}
+    }
+   }
+  }
   onMessage("Сетка создана. Можно проводить матчи и вносить результаты.");
   setBracketName("");setSelectedBracket(created.id);await reload();await openBracket(created.id);
  }
@@ -119,7 +128,7 @@ export default function BracketBuilder({client,canEdit,onMessage}:{client:any;ca
   </div>}
   <div className="section-title" style={{marginTop:24}}><div><h2>Сохранённые сетки</h2><p>Откройте сетку, чтобы вносить результаты и продвигать победителей.</p></div></div>
   <div className="application-list">{brackets.map(b=><button type="button" className={selectedBracket===b.id?"application-row selected":"application-row"} key={b.id} onClick={()=>void openBracket(b.id)}><div className="app-main"><b>{b.name}</b><span>{categories.find(c=>c.id===b.category_id)?.name||"Категория"} · {b.format==="rr"?"Круговая система":"Олимпийская"}</span></div><Trophy size={18}/></button>)}{!brackets.length&&<div className="empty"><b>Сеток пока нет</b><p>Создайте первую сетку выше.</p></div>}</div>
-  {selectedBracket&&<div className="bracket-rounds">{rounds.map(round=><section className="bracket-round" key={round}><h3>{roundTitle(round)}</h3>{matches.filter(m=>m.round_no===round).map(match=><MatchCard key={match.id} match={match} athleteName={athleteName} canEdit={canEdit&&formatForBracket==="single"} busy={busy} onSave={saveWinner}/>)}</section>)}</div>}
+  {selectedBracket&&<div className="bracket-rounds">{rounds.map(round=><section className="bracket-round" key={round}><h3>{roundTitle(round)}</h3>{matches.filter(m=>m.round_no===round).map(match=><MatchCard key={match.id} match={match} athleteName={athleteName} canEdit={canEdit} busy={busy} onSave={saveWinner}/>)}</section>)}</div>}
  </section>;
 }
 function MatchCard({match,athleteName,canEdit,busy,onSave}:{match:Match;athleteName:(id:string|null)=>string;canEdit:boolean;busy:boolean;onSave:(m:Match,w:string,a:string,b:string)=>void}){
