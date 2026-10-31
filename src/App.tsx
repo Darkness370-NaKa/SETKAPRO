@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { Activity, ArrowRight, CheckCircle2, ClipboardList, Download, Pencil, LogOut, Plus, ShieldCheck, Trophy, UserRound, Users } from "lucide-react";
 import { isSupabaseConfigured, supabase } from "./supabase";
 import type { AppRole, ParticipationApplication, Tournament } from "./types";
@@ -19,6 +19,7 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [mode, setMode] = useState<"login" | "signup" | "reset">("login");
   const [message, setMessage] = useState("");
+  const backupInputRef = useRef<HTMLInputElement | null>(null);
   const [editorBracketId, setEditorBracketId] = useState<string | null>(() => new URLSearchParams(window.location.search).get("bracket"));
   const [tab, setTab] = useState<"tournaments" | "apply" | "applications" | "admin" | "users" | "athletes" | "clubs" | "registration" | "weighin" | "categories" | "brackets">("tournaments");
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
@@ -151,6 +152,46 @@ export default function App() {
     setMessage('Резервная копия скачана.'); setBusy(false);
   }
 
+  async function importTournamentBackup(file: File) {
+    if (!supabase || !["SUPER_ADMIN","ADMIN","ORGANIZER"].includes(role)) return;
+    if (!confirm("Восстановить данные из резервной копии? Записи с теми же ID будут обновлены. Отсутствующие в копии записи НЕ удаляются. Сначала рекомендуется скачать текущую копию.")) {
+      if (backupInputRef.current) backupInputRef.current.value = "";
+      return;
+    }
+    setBusy(true);
+    setMessage("Проверяем резервную копию…");
+    try {
+      const backup = JSON.parse(await file.text());
+      if (backup?.format !== "SETKA_PRO_BACKUP" || backup?.version !== 1 || !backup?.data || typeof backup.data !== "object") {
+        throw new Error("Файл не является резервной копией SETKA PRO версии 1.");
+      }
+      const order = ["tournaments","clubs","athletes","tournament_categories","registrations","participation_applications","weigh_ins","brackets","matches","match_change_log"];
+      const allowed = new Set(order);
+      for (const key of Object.keys(backup.data)) {
+        if (!allowed.has(key) || !Array.isArray(backup.data[key])) throw new Error("Некорректный раздел резервной копии: " + key);
+        if (backup.data[key].some((row: any) => !row || typeof row !== "object" || Array.isArray(row) || typeof row.id !== "string")) {
+          throw new Error("В разделе " + key + " обнаружена запись без корректного ID.");
+        }
+      }
+      let restored = 0;
+      for (const table of order) {
+        const rows = backup.data[table] || [];
+        for (let i = 0; i < rows.length; i += 200) {
+          const { error } = await supabase.from(table).upsert(rows.slice(i, i + 200), { onConflict: "id" });
+          if (error) throw new Error("Ошибка восстановления " + table + ": " + error.message + ". Предыдущие разделы уже могли сохраниться.");
+          restored += Math.min(200, rows.length - i);
+        }
+      }
+      await loadUserData();
+      setMessage("Обработано записей: " + restored + ". Данные объединены по ID; отсутствующие записи не удалялись.");
+    } catch (error: any) {
+      setMessage("Не удалось полностью восстановить копию: " + (error?.message || String(error)));
+    } finally {
+      if (backupInputRef.current) backupInputRef.current.value = "";
+      setBusy(false);
+    }
+  }
+
   async function submitApplication(e: FormEvent<HTMLFormElement>) {
     e.preventDefault(); if (!supabase || !user) return;
     const fd = new FormData(e.currentTarget);
@@ -228,7 +269,7 @@ export default function App() {
         {tab === "tournaments" && <>
           <section className="panel">
             <div className="section-title"><div><h2>Турниры</h2><p>Создавайте соревнования и управляйте их публикацией.</p></div>
-              {["SUPER_ADMIN","ADMIN","ORGANIZER"].includes(role) && <div className="row-actions"><button className="secondary" onClick={() => void exportTournamentData()} disabled={busy}><Download size={15}/> Резервная копия</button><button className="primary" onClick={() => setShowTournamentForm(v => !v)}><Plus size={16}/> Создать турнир</button></div>}
+              {["SUPER_ADMIN","ADMIN","ORGANIZER"].includes(role) && <div className="row-actions"><button className="secondary" onClick={() => void exportTournamentData()} disabled={busy}><Download size={15}/> Резервная копия</button><button className="secondary" onClick={() => backupInputRef.current?.click()} disabled={busy}>Восстановить копию</button><input ref={backupInputRef} type="file" accept="application/json,.json" hidden onChange={e => { const file=e.target.files?.[0]; if(file) void importTournamentBackup(file); }}/><button className="primary" onClick={() => setShowTournamentForm(v => !v)}><Plus size={16}/> Создать турнир</button></div>}
             </div>
             {showTournamentForm && ["SUPER_ADMIN","ADMIN","ORGANIZER"].includes(role) && <form className="form-grid" key={editingTournamentId || "new"} onSubmit={createTournament}>
               <label className="full">Название турнира<input name="name" required maxLength={180} defaultValue={tournaments.find(t => t.id === editingTournamentId)?.name || ""} placeholder="Например, Кубок города по армрестлингу"/></label>
