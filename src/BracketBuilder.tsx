@@ -320,19 +320,8 @@ export default function BracketBuilder({client,canEdit,onMessage,initialBracketI
   }
   const {error}=await client.from("matches").update({score_a:a,score_b:b,winner_id:winnerId,status:"completed",finish_reason:"score"}).eq("id",match.id);
   if(error){onMessage("Не удалось сохранить результат: "+error.message);setBusy(false);return}
-  if(match.next_match_id&&match.next_slot){
-   const {error:advanceError}=await client.from("matches").update({[match.next_slot]:winnerId}).eq("id",match.next_match_id);
-   if(advanceError)onMessage("Не удалось перенести победителя: "+advanceError.message);
-  }
-  if(match.loser_next_match_id&&match.loser_next_slot&&loserId){
-   const {error:dropError}=await client.from("matches").update({[match.loser_next_slot]:loserId}).eq("id",match.loser_next_match_id);
-   if(dropError)onMessage("Не удалось перенести проигравшего в утешительную сетку: "+dropError.message);
-  }
-  if(match.bracket_side==="grand_final"&&winnerId===match.athlete_b_id){
-   const {data:bracketRows}=await client.from("matches").select("*").eq("bracket_id",selectedBracket).eq("bracket_side","reset_final").limit(1);
-   const reset=bracketRows?.[0];
-   if(reset){const {error:resetError}=await client.from("matches").update({athlete_a_id:match.athlete_a_id,athlete_b_id:match.athlete_b_id,status:"pending"}).eq("id",reset.id);if(resetError)onMessage("Не удалось открыть дополнительный финал: "+resetError.message)}
-  }
+  const propagationError=await propagateMatchResult(match,winnerId,loserId);
+  if(propagationError)onMessage("Результат сохранён, но переход требует внимания: "+propagationError);
   const {data,error:loadError}=await client.from("matches").select("*").eq("bracket_id",selectedBracket).order("round_no").order("match_no");
   if(loadError)onMessage(loadError.message);else setMatches(data||[]);
   setBusy(false);
