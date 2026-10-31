@@ -41,19 +41,35 @@ export default function App() {
     void loadUserData();
   }, [user?.id]);
 
+  async function fetchAllRows(query: any) {
+    const all: any[] = [];
+    for (let offset = 0; ; offset += 1000) {
+      const { data, error } = await query.range(offset, offset + 999);
+      if (error) return { data: null, error };
+      all.push(...(data ?? []));
+      if ((data ?? []).length < 1000) break;
+    }
+    return { data: all, error: null };
+  }
+
   async function loadUserData() {
     if (!supabase || !user) return;
-    const [{ data: roleData }, { data: tournamentData }, { data: appData }] = await Promise.all([
+    const [roleResult, tournamentResult, applicationResult] = await Promise.all([
       supabase.from("user_roles").select("role").eq("user_id", user.id),
-      supabase.from("tournaments").select("id,name,location,starts_at,ends_at,status").order("starts_at"),
-      supabase.from("participation_applications").select("*,tournaments(name)").order("created_at", { ascending: false })
+      fetchAllRows(supabase.from("tournaments").select("id,name,location,starts_at,ends_at,status").order("starts_at")),
+      fetchAllRows(supabase.from("participation_applications").select("*,tournaments(name)").order("created_at", { ascending: false }))
     ]);
-    const roles = (roleData ?? []).map(x => x.role as AppRole);
+    const loadError = roleResult.error || tournamentResult.error || applicationResult.error;
+    if (loadError) {
+      setMessage("Не удалось обновить данные кабинета: " + loadError.message);
+      return;
+    }
+    const roles = (roleResult.data ?? []).map(x => x.role as AppRole);
     const priority: AppRole[] = ["SUPER_ADMIN","ADMIN","ORGANIZER","SECRETARY","WEIGH_IN_OPERATOR","CHIEF_JUDGE","JUDGE","OBSERVER"];
     const activeRole = priority.find(r => roles.includes(r)) ?? "OBSERVER";
     setRole(activeRole);
-    setTournaments((tournamentData ?? []) as Tournament[]);
-    setApplications((appData ?? []) as ParticipationApplication[]);
+    setTournaments((tournamentResult.data ?? []) as Tournament[]);
+    setApplications((applicationResult.data ?? []) as ParticipationApplication[]);
     if (activeRole === "SUPER_ADMIN") {
       const { data, error } = await supabase.rpc("admin_list_users");
       if (error) setMessage(`Не удалось загрузить пользователей: ${error.message}`);
