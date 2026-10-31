@@ -39,3 +39,110 @@
 .match-links button{grid-column:1/-1;justify-self:start}
 .bracket-round{padding:8px;border:1px dashed transparent;border-radius:9px;transition:border-color .15s,background .15s}
 .bracket-round:has(.match-card:hover){border-color:rgba(197,139,60,.25)}
+
+
+/* APM-style monochrome fight-club visual system */
+:root{
+ color:#ecebea;background:#080909;
+ --bg:#080909;--panel:#111212;--panel2:#191a1a;--line:#383a39;
+ --muted:#929594;--red:#d8d9d6;--green:#c7cbc7;--amber:#c5c5bd;
+ --accent:#d7d9d6;
+}
+html{background:#080909}
+body{
+ background-color:#080909;
+ background-image:
+  radial-gradient(ellipse at 50% -18%,rgba(255,255,255,.10),transparent 44%),
+  radial-gradient(ellipse at 10% 35%,rgba(255,255,255,.035),transparent 32%),
+  repeating-linear-gradient(117deg,rgba(255,255,255,.012) 0 1px,transparent 1px 5px),
+  linear-gradient(180deg,#0b0c0c,#070808 72%);
+}
+.topbar{
+ background:rgba(8,9,9,.94);border-bottom:1px solid #454746;
+ box-shadow:0 8px 30px #0009;
+}
+.brand-mark{
+ background:linear-gradient(145deg,#f0f0ed,#8f9290);color:#101111;
+ border:1px solid #f4f4f1;transform:skew(-7deg);
+ box-shadow:inset 0 0 0 2px #101111,0 0 18px #ffffff12;
+}
+.brand b{color:#f1f1ee;letter-spacing:1.6px;text-shadow:0 2px 12px #fff2}
+.brand b span{color:#aeb2af}
+.brand small{color:#898d8b;letter-spacing:2.4px}
+.sidebar{background:linear-gradient(180deg,#0c0d0d,#090a0a);border-color:#333635}
+.nav-item{color:#b5b8b6;border-radius:2px;letter-spacing:.15px}
+.nav-item:hover,.nav-item.active{background:linear-gradient(90deg,#242625,#151616);color:#fff}
+.nav-item.active{box-shadow:inset 3px 0 #d5d7d4}
+.side-caption,.eyebrow{color:#aeb2af;letter-spacing:2.2px}
+.side-foot{border-color:#383a39;color:#858987}
+.main{max-width:1320px}
+.page-head h1,.section-title h2,.tournament-card h2,.auth-card h2,.setup-card h1{
+ font-family:'Oswald',sans-serif;text-transform:uppercase;letter-spacing:.8px;
+}
+.page-head h1{font-size:clamp(30px,3vw,42px);text-shadow:0 3px 18px #ffffff12}
+.panel,.tournament-card,.dashboard-stats article{
+ background:linear-gradient(145deg,rgba(28,29,29,.97),rgba(13,14,14,.98));
+ border:1px solid #414443;border-radius:3px;
+ box-shadow:0 14px 34px #0007,inset 0 1px #ffffff0b;
+}
+.tournament-card{position:relative;overflow:hidden}
+.tournament-card:before,.panel:before{pointer-events:none}
+.tournament-card:after{
+ content:"";position:absolute;inset:0;pointer-events:none;opacity:.25;
+ background:repeating-linear-gradient(135deg,transparent 0 14px,#ffffff08 15px,transparent 16px 30px);
+}
+.tournament-card h2{font-size:25px}
+.card-top svg{color:#d2d4d1}
+.card-bottom{border-color:#414443}
+.live-pill,.tag,.tag.amber{
+ color:#d8dad7;background:#252827;border:1px solid #4b4e4c;border-radius:2px;
+}
+.primary{
+ background:linear-gradient(180deg,#e0e1dd,#aeb2ae);color:#111312;
+ border:1px solid #f0f1ed;border-radius:2px;text-transform:uppercase;
+ letter-spacing:.6px;box-shadow:0 4px 14px #0008;
+}
+.primary:hover{background:#fff;color:#080909}
+.secondary{
+ background:#171919;border:1px solid #555957;color:#e0e2df;border-radius:2px;
+}
+.text-btn{color:#e0e2df}
+input,select{
+ background:#0b0c0c;border:1px solid #484b49;color:#f0f1ee;border-radius:2px;
+}
+input:focus,select:focus{border-color:#d5d8d4;box-shadow:0 0 0 2px #ffffff12}
+.icon-btn{border-color:#4b4e4c;border-radius:2px;color:#d4d6d2}
+.notice{background:#242522;border-color:#666458;color:#e1dfd3;border-radius:2px}
+.status,.status.approved,.status.rejected{
+ background:#252827;color:#dedfdb;border:1px solid #555957;border-radius:2px;
+}
+.approve,.reject{border-radius:2px;background:#252827;border-color:#777c78;color:#eceeeb}
+.reject{background:#242323;border-color:#777;color:#ddd}
+.auth-page{background:#080909}
+.auth-visual{
+ background:
+  radial-gradient(ellipse at 50% 45%,#282a29 0,transparent 48%),
+  repeating-linear-gradient(135deg,#ffffff08 0 1px,transparent 1px 7px),
+  linear-gradient(145deg,#171918,#080909 76%);
+ border-color:#444746;
+}
+.auth-visual:after{border-color:#656966;box-shadow:0 0 0 50px #ffffff06,0 0 0 100px #ffffff03}
+.visual-copy h1{font-family:'Oswald',sans-serif;text-transform:uppercase;letter-spacing:1.4px}
+.visual-copy h1 em{color:#d7d9d5}
+.visual-copy p{color:#b2b5b2}
+.visual-foot{color:#858986}
+.auth-card h2{font-size:36px}
+.setup-card{background:#121414;border-color:#444746;border-radius:3px}
+.setup-icon{background:#292c2a;color:#e0e2de;border-radius:2px}
+.match-card{background:#151717;border:1px solid #505452;border-radius:3px}
+.match-number{color:#d5d7d3}
+.match-links,.match-history,.management-form{background:#101212;border-color:#414543;border-radius:3px}
+.bracket-editor-page{background:linear-gradient(145deg,#191b1a,#0b0c0c);border-color:#4b4e4c;border-radius:3px}
+.bracket-round{border-radius:2px}
+.data-table th{color:#b5b8b5}
+.empty-icon{background:#292c2a;color:#dedfdb}
+@media(max-width:760px){
+ .topbar{background:#090a0a}
+ .sidebar{background:#0b0c0c}
+ .main{padding-top:22px}
+}
