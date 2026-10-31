@@ -1,13 +1,2587 @@
 <!doctype html>
 <html lang="ru">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#101318" />
-    <title>SETKA PRO — армрестлинг</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"/>
+<title>SETKA PRO — система управления турнирами</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#0a0a0a; --ink2:#111; --ink3:#161616; --ink4:#1c1c1c;
+  --steel:#2a2a2a; --steel-l:#3a3a3a; --steel-d:#1a1a1a;
+  --bone:#e8e8e8; --bone-dim:#9a9a9a; --bone-faint:#5a5a5a;
+  --blood:#c1121f; --blood-d:#8b0d16; --blood-l:#e63946;
+  color-scheme:dark;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  background:var(--ink); color:var(--bone);
+  font-family:'Oswald',system-ui,sans-serif;
+  -webkit-font-smoothing:antialiased;
+  background-image:
+    radial-gradient(ellipse at top,rgba(255,255,255,.03),transparent 60%),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.04 0 0 0 0 0.04 0 0 0 0 0.04 0 0 0 .6 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-attachment:fixed;
+}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-track{background:#0a0a0a}
+::-webkit-scrollbar-thumb{background:#2a2a2a;border:2px solid #0a0a0a}
+button{font-family:inherit;cursor:pointer}
+input,select,textarea{font-family:inherit}
+a{color:inherit;text-decoration:none}
+
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;font-size:11px;font-weight:700;
+  text-transform:uppercase;letter-spacing:.15em;border:1px solid var(--steel-l);
+  background:var(--ink3);color:var(--bone);transition:.15s}
+.btn:hover{background:var(--ink4);border-color:var(--bone-dim)}
+.btn.primary{background:var(--blood);border-color:var(--blood);color:#fff}
+.btn.primary:hover{background:var(--blood-d)}
+.btn.ghost{background:transparent;border-color:transparent}
+.btn.ghost:hover{background:var(--ink3);border-color:var(--steel-l)}
+.btn.danger{border-color:rgba(193,18,31,.6);color:var(--blood-l)}
+.btn.danger:hover{background:rgba(193,18,31,.2)}
+.btn.xs{padding:5px 9px;font-size:10px}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+
+.input{width:100%;background:var(--ink2);border:1px solid var(--steel-l);color:var(--bone);
+  padding:8px 12px;font-size:13px;outline:none}
+.input:focus{border-color:var(--blood)}
+.label{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.2em;
+  color:var(--bone-dim);margin-bottom:5px;font-weight:700}
+
+.card{background:var(--ink2);border:1px solid var(--steel)}
+.tag{display:inline-flex;align-items:center;padding:2px 8px;font-size:10px;font-weight:700;
+  text-transform:uppercase;letter-spacing:.15em;border:1px solid var(--steel-l);
+  color:var(--bone-dim);background:var(--ink3)}
+.tag.red{border-color:rgba(193,18,31,.6);color:var(--blood-l);background:rgba(193,18,31,.1)}
+.tag.green{border-color:rgba(16,185,129,.5);color:#34d399;background:rgba(6,78,59,.2)}
+.tag.gray{border-color:var(--steel);color:var(--bone-faint)}
+
+.divider{border-top:1px solid var(--steel);margin:12px 0}
+
+.app{display:flex;flex-direction:column;min-height:100vh}
+.header{position:sticky;top:0;z-index:30;background:rgba(17,17,17,.95);
+  backdrop-filter:blur(6px);border-bottom:1px solid var(--steel)}
+.header-inner{display:flex;align-items:center;gap:12px;padding:0 16px;height:56px}
+.brand{display:flex;align-items:center;gap:12px;background:none;border:none;color:inherit;padding:0}
+.brand-text{text-align:left;line-height:1}
+.brand-title{font-size:17px;font-weight:700;letter-spacing:.2em}
+.brand-sub{font-size:9px;color:var(--bone-faint);letter-spacing:.3em;margin-top:4px}
+.body{display:flex;flex:1;min-height:0}
+
+.sidebar{width:224px;flex-shrink:0;background:rgba(17,17,17,.7);border-right:1px solid var(--steel)}
+.sidebar-inner{padding:8px}
+.navlink{display:flex;align-items:center;gap:12px;padding:8px 12px;font-size:11px;font-weight:700;
+  text-transform:uppercase;letter-spacing:.2em;color:var(--bone-dim);
+  border-left:2px solid transparent;transition:.15s;background:none;border-top:none;border-right:none;border-bottom:none;width:100%;text-align:left}
+.navlink:hover{color:var(--bone);background:var(--ink3)}
+.navlink.active{color:var(--bone);border-left-color:var(--blood);background:var(--ink3)}
+.navlink .ic{font-size:10px;opacity:.6}
+.navlink .badge{margin-left:auto;background:var(--blood);color:#fff;font-size:9px;
+  padding:1px 6px;letter-spacing:.1em;font-family:'JetBrains Mono',monospace}
+.sidebar-footer{padding:16px;font-size:10px;color:var(--bone-faint);line-height:1.6;border-top:1px solid var(--steel);margin-top:16px}
+.sidebar-footer b{color:var(--blood-l);letter-spacing:.2em;display:block;margin-bottom:8px}
+
+main{flex:1;min-width:0;overflow:auto}
+
+.page{padding:32px}
+.page-title{font-size:28px;font-weight:700;letter-spacing:.2em;text-transform:uppercase}
+.page-sub{font-size:10px;letter-spacing:.4em;color:var(--bone-faint);text-transform:uppercase;margin-bottom:4px}
+.page-head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:24px;flex-wrap:wrap}
+
+.grid{display:grid;gap:16px}
+.grid.c2{grid-template-columns:repeat(auto-fill,minmax(340px,1fr))}
+.grid.c3{grid-template-columns:repeat(auto-fill,minmax(280px,1fr))}
+
+.hero{position:relative;border-bottom:1px solid var(--steel);overflow:hidden}
+.hero::before{content:'';position:absolute;inset:0;opacity:.06;pointer-events:none;
+  background-image:repeating-linear-gradient(45deg,#fff 0 2px,transparent 2px 20px)}
+.hero-inner{position:relative;padding:80px 32px;max-width:1100px}
+.hero-tag{display:flex;align-items:center;gap:8px;margin-bottom:24px}
+.hero-dot{width:8px;height:8px;background:var(--blood)}
+.hero-label{font-size:10px;letter-spacing:.4em;color:var(--bone-dim);text-transform:uppercase}
+.hero h1{font-size:clamp(48px,8vw,96px);font-weight:700;line-height:1;letter-spacing:-.01em}
+.hero h1 span{color:var(--blood)}
+.hero h2{font-size:clamp(20px,3vw,36px);font-weight:700;letter-spacing:.15em;color:var(--bone-dim);text-transform:uppercase;margin-top:16px}
+.hero p{color:var(--bone-faint);letter-spacing:.3em;text-transform:uppercase;font-size:13px;margin-top:24px}
+.hero-btns{display:flex;flex-wrap:wrap;gap:12px;margin-top:40px}
+.hero-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-top:56px;max-width:900px}
+.stat{background:var(--ink2);border:1px solid var(--steel);border-left:2px solid var(--blood);padding:16px}
+.stat-num{font-size:30px;font-weight:700;font-family:'JetBrains Mono',monospace}
+.stat-label{font-size:10px;letter-spacing:.3em;color:var(--bone-faint);text-transform:uppercase;margin-top:4px}
+
+.t-card{padding:16px;transition:.15s;position:relative}
+.t-card:hover{border-color:rgba(193,18,31,.6)}
+.t-card .title{font-size:15px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;line-height:1.25;margin:4px 0;cursor:pointer}
+.t-card .place{font-size:11px;color:var(--bone-faint);margin-bottom:16px}
+.t-card .date{font-size:10px;letter-spacing:.2em;color:var(--bone-faint);text-transform:uppercase}
+.t-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;text-align:center;margin:12px 0}
+.mini-stat{border:1px solid var(--steel);padding:6px 4px}
+.mini-stat .v{font-size:16px;font-weight:700;font-family:'JetBrains Mono',monospace}
+.mini-stat .l{font-size:9px;letter-spacing:.15em;color:var(--bone-faint);text-transform:uppercase}
+.t-card-actions{display:flex;justify-content:flex-end;gap:6px;margin-top:8px}
+.t-card-select{position:absolute;top:12px;left:12px;width:18px;height:18px;accent-color:var(--blood)}
+
+.table{width:100%;font-size:13px;border-collapse:collapse}
+.table thead{background:var(--ink3)}
+.table th{font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--bone-dim);text-align:left;padding:8px 16px;font-weight:700}
+.table td{padding:8px 16px;border-top:1px solid var(--steel)}
+.table tr:hover td{background:var(--ink3)}
+.table .name{font-weight:700;text-transform:uppercase}
+.table .mono{font-family:'JetBrains Mono',monospace}
+.table .dim{color:var(--bone-dim)}
+.right{text-align:right}
+
+.modal-bg{position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.8);backdrop-filter:blur(4px);
+  display:flex;align-items:center;justify-content:center;padding:16px}
+.modal{background:var(--ink2);border:1px solid var(--steel);width:100%;max-width:520px;max-height:90vh;overflow:auto}
+.modal.wide{max-width:900px}
+.modal-head{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--steel)}
+.modal-head h3{font-size:13px;letter-spacing:.2em;text-transform:uppercase;font-weight:700}
+.modal-head .x{background:none;border:none;color:var(--bone-dim);font-size:22px;line-height:1;cursor:pointer}
+.modal-body{padding:16px}
+.modal-foot{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}
+
+.row{display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--steel)}
+.row:last-child{border-bottom:none}
+.row .rl{font-size:10px;letter-spacing:.2em;color:var(--bone-faint);text-transform:uppercase}
+.row .rv{font-size:12px;font-weight:700;text-transform:uppercase}
+
+.cat-card{padding:16px;margin-bottom:12px}
+.cat-name{font-size:14px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;margin:4px 0 12px}
+.cat-tags{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+.br-list{border-top:1px solid var(--steel);padding-top:12px;display:flex;flex-direction:column;gap:6px}
+.br-item{border:1px solid var(--steel);padding:8px 12px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.br-item:hover{border-color:rgba(193,18,31,.6)}
+.br-item .name{font-size:12px;font-weight:700;text-transform:uppercase}
+.br-item .meta{font-size:10px;color:var(--bone-faint)}
+
+.bulk-bar{padding:8px 16px;background:var(--ink3);border:1px solid var(--blood);
+  display:flex;align-items:center;gap:12px;margin-bottom:16px}
+.bulk-bar .count{font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:700;color:var(--blood-l)}
+
+/* Корзина */
+.trash-list{display:flex;flex-direction:column;gap:8px}
+.trash-item{padding:12px 16px;background:var(--ink2);border:1px solid var(--steel);
+  display:flex;align-items:center;justify-content:space-between;gap:12px}
+.trash-item .info{flex:1;min-width:0}
+.trash-item .name{font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px}
+.trash-item .meta{font-size:10px;color:var(--bone-faint);letter-spacing:.15em;text-transform:uppercase}
+.trash-item .actions{display:flex;gap:6px}
+
+.editor{display:flex;flex-direction:column;height:100vh;background:var(--ink)}
+.editor-top{border-bottom:1px solid var(--steel);background:rgba(17,17,17,.95);padding:8px 16px;
+  display:flex;align-items:center;gap:12px;flex-wrap:wrap;flex-shrink:0}
+.editor-top .back{color:var(--bone-dim);font-size:11px;text-transform:uppercase;letter-spacing:.2em;background:none;border:none;padding:0}
+.editor-top .sep{width:1px;height:24px;background:var(--steel)}
+.editor-top .title-block{line-height:1}
+.editor-top .title-block .t{font-size:10px;color:var(--bone-faint);letter-spacing:.2em;text-transform:uppercase}
+.editor-top .title-block .n{font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;margin-top:3px}
+.editor-top .flex1{flex:1}
+.save-status{font-size:10px;letter-spacing:.2em;text-transform:uppercase;display:flex;align-items:center;gap:6px}
+.save-dot{width:6px;height:6px;border-radius:50%}
+.save-dot.ok{background:#10b981;box-shadow:0 0 6px rgba(16,185,129,.7)}
+.save-dot.busy{background:#f59e0b;animation:pulse 1s infinite}
+@keyframes pulse{50%{opacity:.3}}
+
+.editor-body{flex:1;display:flex;min-height:0}
+.toolbar{width:56px;background:var(--ink2);border-right:1px solid var(--steel);
+  display:flex;flex-direction:column;align-items:center;padding:8px 0;gap:2px;flex-shrink:0}
+.tool{width:40px;height:40px;display:flex;align-items:center;justify-content:center;
+  border:1px solid transparent;background:transparent;color:var(--bone-dim);
+  font-size:18px;transition:.15s}
+.tool:hover{color:var(--bone);border-color:var(--steel)}
+.tool.active{border-color:var(--blood);background:rgba(193,18,31,.1);color:var(--blood-l)}
+.tool-sep{width:32px;height:1px;background:var(--steel);margin:4px 0}
+.tool-spacer{flex:1}
+
+.canvas-wrap{flex:1;position:relative;min-width:0;overflow:hidden;background:var(--ink)}
+#canvas{width:100%;height:100%;display:block;touch-action:none;user-select:none}
+.canvas-wrap.panning{cursor:grabbing}
+
+.status-bar{position:absolute;left:0;right:0;bottom:0;padding:6px 12px;background:rgba(17,17,17,.95);
+  border-top:1px solid var(--steel);display:flex;align-items:center;gap:16px;
+  font-size:10px;letter-spacing:.2em;color:var(--bone-faint);text-transform:uppercase;z-index:5}
+.status-bar .spacer{flex:1}
+
+.minimap{position:absolute;right:12px;bottom:32px;border:1px solid var(--steel);
+  background:rgba(17,17,17,.95);backdrop-filter:blur(4px);z-index:4}
+.minimap svg{display:block}
+
+.props{width:300px;border-left:1px solid var(--steel);background:var(--ink2);
+  display:flex;flex-direction:column;flex-shrink:0}
+.props-head{padding:12px 16px;border-bottom:1px solid var(--steel);display:flex;align-items:center;justify-content:space-between}
+.props-head h3{font-size:10px;letter-spacing:.2em;text-transform:uppercase;font-weight:700;color:var(--bone-dim)}
+.props-body{padding:16px;overflow:auto;flex:1}
+.props-empty{color:var(--bone-faint);font-size:12px;line-height:1.6}
+
+.match-badge{text-align:center;margin-bottom:20px}
+.match-badge .num{font-size:36px;font-weight:700;font-family:'JetBrains Mono',monospace;color:var(--blood)}
+.match-badge .meta{font-size:10px;letter-spacing:.2em;color:var(--bone-faint);text-transform:uppercase;margin-top:4px}
+
+.empty{text-align:center;padding:60px 20px;color:var(--bone-faint);font-size:12px;letter-spacing:.2em;text-transform:uppercase}
+
+.steps{display:flex;align-items:center;gap:4px;margin-bottom:24px}
+.step-num{width:24px;height:24px;display:flex;align-items:center;justify-content:center;
+  border:1px solid var(--steel);font-size:11px;font-weight:700;color:var(--bone-faint)}
+.step-num.on{border-color:var(--blood);background:var(--blood);color:#fff}
+.step-line{flex:1;height:1px;background:var(--steel)}
+.step-line.on{background:var(--blood)}
+
+.format-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.format-btn{text-align:left;padding:16px;border:2px solid var(--steel);background:transparent;color:inherit;transition:.15s}
+.format-btn:hover{border-color:var(--bone-dim)}
+.format-btn.on{border-color:var(--blood);background:rgba(193,18,31,.1)}
+.format-btn .t{font-weight:700;letter-spacing:.15em;text-transform:uppercase;font-size:12px}
+.format-btn .d{font-size:10px;color:var(--bone-faint);margin-top:4px}
+
+.ath-list{max-height:360px;overflow:auto;border:1px solid var(--steel)}
+.ath-row{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;
+  border-bottom:1px solid var(--steel);cursor:pointer}
+.ath-row:hover{background:var(--ink3)}
+.ath-row.on{background:rgba(193,18,31,.1);border-left:2px solid var(--blood)}
+.ath-row .n{font-size:13px;font-weight:700;text-transform:uppercase}
+.ath-row .m{font-size:10px;color:var(--bone-faint)}
+
+#boot-error{position:fixed;inset:0;background:#0a0a0a;color:#e63946;padding:32px;
+  font-family:'JetBrains Mono',monospace;font-size:12px;white-space:pre-wrap;overflow:auto;z-index:9999}
+
+@media(max-width:900px){
+  .sidebar{display:none}
+  .props{position:fixed;right:0;bottom:0;top:56px;z-index:20}
+  .minimap{display:none}
+}
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script>
+'use strict';
+
+/* ============================================================
+   SETKA PRO — BRACKET MANAGER v3
+   ============================================================ */
+
+/* ---------- Safe ---------- */
+function safe(fn, label){
+  try { return fn(); }
+  catch(e){
+    console.error('['+label+']', e);
+    showBootError(label + ': ' + e.message + '\n\n' + (e.stack||''));
+    return '';
+  }
+}
+function showBootError(msg){
+  const el = document.createElement('div');
+  el.id = 'boot-error';
+  el.textContent = 'ОШИБКА РЕНДЕРА\n\n' + msg;
+  document.body.appendChild(el);
+}
+
+/* ---------- Utilities ---------- */
+const uid = () => Math.random().toString(36).slice(2,10);
+const $ = (sel,el=document) => el.querySelector(sel);
+const $$ = (sel,el=document) => Array.from(el.querySelectorAll(sel));
+const esc = s => String(s==null?'':s).replace(/[<>&"']/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&#39;'}[c]));
+const fmtDate = d => { try { return new Date(d).toLocaleDateString('ru-RU'); } catch(_){ return ''; } };
+const fmtDateTime = d => { try { return new Date(d).toLocaleString('ru-RU'); } catch(_){ return ''; } };
+
+/* ---------- Storage ---------- */
+const STORE_KEY = 'arm-msk37-store-v3';
+const DB = {
+  clubs:[], athletes:[], tournaments:[], categories:[], brackets:[], matches:[],
+  templates:[], history:[], trash:[], user:null,
+  undoStack:[], redoStack:[],
+  save(){
+    try {
+      const snap = {clubs:this.clubs, athletes:this.athletes, tournaments:this.tournaments,
+        categories:this.categories, brackets:this.brackets, matches:this.matches,
+        templates:this.templates, history:this.history, trash:this.trash, user:this.user};
+      localStorage.setItem(STORE_KEY, JSON.stringify(snap));
+    } catch(e){ console.warn('save failed',e); }
+  },
+  load(){
+    try {
+      const raw = localStorage.getItem(STORE_KEY);
+      if(!raw) return false;
+      const d = JSON.parse(raw);
+      this.clubs = Array.isArray(d.clubs)?d.clubs:[];
+      this.athletes = Array.isArray(d.athletes)?d.athletes:[];
+      this.tournaments = Array.isArray(d.tournaments)?d.tournaments:[];
+      this.categories = Array.isArray(d.categories)?d.categories:[];
+      this.brackets = Array.isArray(d.brackets)?d.brackets:[];
+      this.matches = Array.isArray(d.matches)?d.matches:[];
+      this.templates = Array.isArray(d.templates)?d.templates:[];
+      this.history = Array.isArray(d.history)?d.history:[];
+      this.trash = Array.isArray(d.trash)?d.trash:[];
+      this.user = d.user || null;
+      this.undoStack = []; this.redoStack = [];
+      return true;
+    } catch(e){ console.warn('load failed',e); return false; }
+  },
+  snapshot(){
+    return {
+      brackets: JSON.parse(JSON.stringify(this.brackets)),
+      matches: JSON.parse(JSON.stringify(this.matches)),
+      categories: JSON.parse(JSON.stringify(this.categories)),
+      athletes: JSON.parse(JSON.stringify(this.athletes)),
+      tournaments: JSON.parse(JSON.stringify(this.tournaments)),
+      trash: JSON.parse(JSON.stringify(this.trash)),
+    };
+  },
+  restore(s){
+    this.brackets = s.brackets; this.matches = s.matches;
+    this.categories = s.categories; this.athletes = s.athletes;
+    this.tournaments = s.tournaments;
+    this.trash = s.trash || [];
+  },
+  pushUndo(){ this.undoStack.push(this.snapshot()); if(this.undoStack.length>60) this.undoStack.shift(); this.redoStack=[]; },
+  undo(){ if(!this.undoStack.length) return false; this.redoStack.push(this.snapshot()); this.restore(this.undoStack.pop()); this.save(); return true; },
+  redo(){ if(!this.redoStack.length) return false; this.undoStack.push(this.snapshot()); this.restore(this.redoStack.pop()); this.save(); return true; },
+  log(bracketId, action, details){
+    this.history.unshift({id:uid(),timestamp:Date.now(),bracketId,action,details});
+    if(this.history.length>300) this.history.length = 300;
+  }
+};
+
+/* ---------- Bracket generation ---------- */
+function nextPow2(n){ return Math.pow(2, Math.ceil(Math.log2(Math.max(2,n)))); }
+function roundLabelForSize(size){
+  const map = {2:'ФИНАЛ',4:'1/2 ФИНАЛА',8:'1/4 ФИНАЛА',16:'1/8 ФИНАЛА',32:'1/16 ФИНАЛА',64:'1/32 ФИНАЛА',128:'1/64 ФИНАЛА'};
+  return map[size] || `1/${size} ФИНАЛА`;
+}
+function shuffle(a){ const x=[...a]; for(let i=x.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));const t=x[i];x[i]=x[j];x[j]=t;} return x; }
+function buildBracketOrder(size){
+  let order=[0,1];
+  while(order.length<size){
+    const next=[]; const n=order.length*2;
+    for(const o of order){ next.push(o); next.push(n-1-o); }
+    order=next;
+  }
+  return order;
+}
+
+function generateSingleElim(bracketId, athleteIds, seed, startX=60, startY=60){
+  const size = nextPow2(athleteIds.length);
+  const rounds = Math.log2(size);
+  const labels=[];
+  for(let i=0;i<rounds;i++) labels.push(roundLabelForSize(size/Math.pow(2,i)));
+  const order = buildBracketOrder(size);
+  const slots = new Array(size).fill(null);
+  for(let i=0;i<size;i++) slots[order[i]] = seed[i] != null ? seed[i] : null;
+
+  const matches=[], grid=[];
+  const colW=260, rowH=90;
+  for(let r=0;r<rounds;r++){
+    const inRound = size/Math.pow(2,r+1);
+    const round=[];
+    for(let i=0;i<inRound;i++){
+      const m = {
+        id:uid(), bracketId, roundIndex:r, position:i,
+        athleteAId:null, athleteBId:null, scoreA:0, scoreB:0,
+        winnerId:null, loserId:null, status:'scheduled',
+        nextMatchId:null, loserNextMatchId:null,
+        label:labels[r], side:'winners',
+        x:startX + r*colW,
+        y:startY + i*rowH*Math.pow(2,r) + (rowH*(Math.pow(2,r)-1))/2,
+      };
+      round.push(m); matches.push(m);
+    }
+    grid.push(round);
+  }
+  for(let i=0;i<grid[0].length;i++){
+    const m=grid[0][i];
+    m.athleteAId = slots[i*2] != null ? slots[i*2] : null;
+    m.athleteBId = slots[i*2+1] != null ? slots[i*2+1] : null;
+    if(m.athleteAId && !m.athleteBId){ m.winnerId=m.athleteAId; m.status='completed'; m.scoreA=1; }
+    else if(m.athleteBId && !m.athleteAId){ m.winnerId=m.athleteBId; m.status='completed'; m.scoreB=1; }
+    else if(m.athleteAId && m.athleteBId){ m.status='filled'; }
+    else m.status='scheduled';
+  }
+  for(let r=0;r<rounds-1;r++){
+    const cur=grid[r], nxt=grid[r+1];
+    for(let i=0;i<cur.length;i++){
+      cur[i].nextMatchId = nxt[Math.floor(i/2)].id;
+    }
+  }
+  propagateGrids(grid);
+  return {matches, roundLabels:labels};
+}
+
+function generateDoubleElim(bracketId, athleteIds, seed){
+  const wb = generateSingleElim(bracketId, athleteIds, seed, 60, 60);
+  const wbRounds = Math.log2(nextPow2(athleteIds.length));
+  const size = nextPow2(athleteIds.length);
+  const wbMatches = wb.matches.map(m=>Object.assign({}, m, {side:'winners'}));
+  const losersRounds = Math.max(1, wbRounds-1);
+  const lbGrid=[];
+  const colW=260, rowH=90, lbStartX=60, lbStartY=480;
+  const allMatches=[].concat(wbMatches);
+
+  for(let r=0;r<losersRounds;r++){
+    const inRound = Math.max(1, size/Math.pow(2, r+2));
+    const round=[];
+    for(let i=0;i<inRound;i++){
+      const m = {
+        id:uid(), bracketId, roundIndex:r, position:i,
+        athleteAId:null, athleteBId:null, scoreA:0, scoreB:0,
+        winnerId:null, loserId:null, status:'scheduled',
+        nextMatchId:null, loserNextMatchId:null,
+        label:`LB РАУНД ${r+1}`, side:'losers',
+        x: lbStartX + r*colW,
+        y: lbStartY + i*rowH*Math.pow(2,r) + (rowH*(Math.pow(2,r)-1))/2,
+      };
+      round.push(m); allMatches.push(m);
+    }
+    lbGrid.push(round);
+  }
+  for(let r=0;r<losersRounds-1;r++){
+    const cur=lbGrid[r], nxt=lbGrid[r+1];
+    for(let i=0;i<cur.length;i++){
+      cur[i].nextMatchId = nxt[Math.min(Math.floor(i/2), nxt.length-1)].id;
+    }
+  }
+  const gf = {
+    id:uid(), bracketId, roundIndex:0, position:0,
+    athleteAId:null, athleteBId:null, scoreA:0, scoreB:0,
+    winnerId:null, loserId:null, status:'scheduled',
+    nextMatchId:null, loserNextMatchId:null,
+    label:'ГРАНД-ФИНАЛ', side:'grand-final',
+    x: lbStartX + Math.max(wbRounds, losersRounds)*colW,
+    y: lbStartY,
+  };
+  allMatches.push(gf);
+  const wbFinal = wbMatches[wbMatches.length-1];
+  if(wbFinal) wbFinal.nextMatchId = gf.id;
+  if(lbGrid[losersRounds-1] && lbGrid[losersRounds-1][0]) lbGrid[losersRounds-1][0].nextMatchId = gf.id;
+
+  for(let r=0;r<wbRounds-1;r++){
+    const round = wbMatches.filter(m=>m.roundIndex===r);
+    const lbIdx = r===0 ? 0 : r-1;
+    const lbRound = lbGrid[Math.min(lbIdx, lbGrid.length-1)];
+    if(!lbRound) continue;
+    round.forEach((m,i)=>{
+      const idx = Math.floor(i/2);
+      const target = lbRound[Math.min(idx, lbRound.length-1)] || lbRound[0];
+      if(target) m.loserNextMatchId = target.id;
+    });
+  }
+  propagateGrids([wbMatches.filter(m=>m.roundIndex===0)]);
+  return {matches:allMatches, roundLabels:wb.roundLabels.concat(['ГРАНД-ФИНАЛ'])};
+}
+
+function generateRoundRobin(bracketId, athleteIds, startX=60, startY=60){
+  const list=[].concat(athleteIds);
+  if(list.length%2===1) list.push('BYE');
+  const n=list.length;
+  const rounds=Math.max(1, n-1);
+  const matches=[], labels=[];
+  const arr=[].concat(list);
+  const colW=260, rowH=90;
+  for(let r=0;r<rounds;r++){
+    labels.push(`РАУНД ${r+1}`);
+    for(let i=0;i<n/2;i++){
+      const a=arr[i], b=arr[n-1-i];
+      if(a==='BYE'||b==='BYE') continue;
+      matches.push({
+        id:uid(), bracketId, roundIndex:r, position:i,
+        athleteAId:a, athleteBId:b, scoreA:0, scoreB:0,
+        winnerId:null, loserId:null, status:'filled',
+        nextMatchId:null, loserNextMatchId:null,
+        label:`РАУНД ${r+1}`, side:'group',
+        x: startX + r*colW, y: startY + i*rowH,
+      });
+    }
+    const fixed=arr[0];
+    const rest=arr.slice(1);
+    rest.unshift(rest.pop());
+    arr.length = 0;
+    arr.push(fixed, ...rest);
+  }
+  return {matches, roundLabels:labels};
+}
+
+function generateGroupsPlayoff(bracketId, athleteIds, groupSize){
+  groupSize = groupSize || 4;
+  const shuffled = shuffle(athleteIds);
+  const groups=[];
+  for(let i=0;i<shuffled.length;i+=groupSize) groups.push(shuffled.slice(i,i+groupSize));
+  const matches=[], labels=[];
+  let yOff=0;
+  groups.forEach((g,gi)=>{
+    labels.push(`ГРУППА ${String.fromCharCode(65+gi)}`);
+    const rr = generateRoundRobin(bracketId, g);
+    rr.matches.forEach((m,i)=>{
+      m.y = 60 + yOff + i*90;
+      m.x = 60;
+      m.side='group';
+      m.label = 'ГРУППА ' + String.fromCharCode(65+gi);
+      matches.push(m);
+    });
+    yOff += rr.matches.length*90 + 60;
+  });
+  return {matches, roundLabels:labels};
+}
+
+function propagateGrids(grids){
+  for(let r=0;r<grids.length-1;r++){
+    for(const m of grids[r]){
+      if(!m.nextMatchId) continue;
+      let next;
+      for(const g of grids) for(const x of g) if(x.id===m.nextMatchId) next=x;
+      if(!next) continue;
+      const slot = m.position%2===0 ? 'A' : 'B';
+      if(m.winnerId){
+        if(slot==='A') next.athleteAId=m.winnerId;
+        else next.athleteBId=m.winnerId;
+      }
+      if(next.athleteAId && next.athleteBId && next.status!=='completed' && next.status!=='cancelled')
+        next.status='filled';
+    }
+  }
+}
+
+function recomputeBracket(matches){
+  const map = new Map(matches.map(m=>[m.id, Object.assign({}, m)]));
+  for(const m of map.values()){
+    if(!m.nextMatchId) continue;
+    const next = map.get(m.nextMatchId);
+    if(!next) continue;
+    const slot = m.position%2===0 ? 'A' : 'B';
+    if(m.winnerId){
+      if(slot==='A') next.athleteAId = m.winnerId;
+      else next.athleteBId = m.winnerId;
+    }
+  }
+  for(const m of map.values()){
+    if(m.status==='cancelled') continue;
+    if(!m.athleteAId && !m.athleteBId){ m.status='empty'; continue; }
+    if(m.athleteAId && m.athleteBId){
+      m.status = m.winnerId ? 'completed' : 'filled';
+    } else {
+      const only = m.athleteAId || m.athleteBId;
+      if(only && !m.winnerId){ m.winnerId=only; m.loserId=null; m.status='completed'; }
+      else if(!only){ m.status='scheduled'; }
+    }
+  }
+  return Array.from(map.values());
+}
+
+function buildBracket(tournamentId, categoryId, name, format, athleteIds, manualSeed){
+  const bracketId = uid();
+  const seed = (manualSeed && manualSeed.length) ? manualSeed : shuffle(athleteIds);
+  let res;
+  if(format==='single-elim') res = generateSingleElim(bracketId, athleteIds, seed);
+  else if(format==='double-elim') res = generateDoubleElim(bracketId, athleteIds, seed);
+  else if(format==='round-robin') res = generateRoundRobin(bracketId, athleteIds);
+  else if(format==='groups-playoff') res = generateGroupsPlayoff(bracketId, athleteIds);
+  else res = generateSingleElim(bracketId, athleteIds, seed);
+  const bracket = {
+    id: bracketId, tournamentId, categoryId, name, format,
+    matchIds: res.matches.map(m=>m.id),
+    roundLabels: res.roundLabels,
+    createdAt: Date.now(), updatedAt: Date.now(),
+  };
+  return {bracket, matches: res.matches};
+}
+
+/* ---------- Seed ---------- */
+function seedDemo(){
+  const MALE_FIRST=['Иван','Алексей','Дмитрий','Сергей','Максим','Андрей','Николай','Павел','Роман','Артём','Виктор','Егор','Кирилл','Владимир','Михаил','Олег','Игорь','Антон'];
+  const MALE_LAST=['Петров','Сидоров','Иванов','Кузнецов','Смирнов','Волков','Орлов','Соколов','Морозов','Зайцев','Егоров','Панов','Беляев','Титов','Гусев','Крылов','Фомин','Соболев'];
+  const FEMALE_FIRST=['Анна','Мария','Ольга','Елена','Юлия','Дарья','Ксения','Алиса','Виктория','Полина','Наталья','Татьяна'];
+  const FEMALE_LAST=['Смирнова','Кузнецова','Попова','Соколова','Лебедева','Козлова','Новикова','Морозова','Петрова','Волкова','Орлова','Зайцева'];
+  const CITIES=['Москва','Санкт-Петербург','Тверь','Ярославль','Тула','Калуга','Рязань','Смоленск','Владимир','Кострома'];
+  const CLUBS=['ЖЕЛЕЗО','ЛОКОМОТИВ','ТИТАН','СТАЛЬ','РУСИЧ','ГРАНИТ','ВОЛГА','ЗУБР','МОЛОТ','КЛИН'];
+
+  const clubs = CLUBS.map((name,i)=>({id:'c'+i,name:name,city:CITIES[i%CITIES.length]}));
+  const athletes=[];
+  for(let i=0;i<40;i++){
+    const isFemale = i>=28;
+    const first = isFemale ? FEMALE_FIRST[i%FEMALE_FIRST.length] : MALE_FIRST[i%MALE_FIRST.length];
+    const last  = isFemale ? FEMALE_LAST[i%FEMALE_LAST.length] : MALE_LAST[i%MALE_LAST.length];
+    athletes.push({
+      id:'a'+i, firstName:first, lastName:last,
+      country:'RU', city:CITIES[i%CITIES.length], club:CLUBS[i%CLUBS.length],
+      weight: 60 + ((i*7)%60),
+      hand: i%3===0 ? 'left' : 'right',
+    });
+  }
+
+  const tournaments=[
+    { id:'t1', name:'КУБОК SETKA PRO · ЗИМА 2025', description:'Открытый турнир по армрестлингу. Москва.',
+      date:'2025-02-15', place:'Москва, СК «Железо»', organizer:'SETKA PRO', status:'prep',
+      createdAt: Date.now()-86400000*30, updatedAt: Date.now()-86400000*2 },
+    { id:'t2', name:'ПЕРВЕНСТВО ЦФО · ВЕСНА 2025', description:'Первенство ЦФО.',
+      date:'2025-04-20', place:'Тверь, ДС «Юбилейный»', organizer:'ФАР ЦФО', status:'draft',
+      createdAt: Date.now()-86400000*10, updatedAt: Date.now()-86400000*1 },
+    { id:'t3', name:'МОСКОВСКИЙ ТУРНИР · ОСЕНЬ 2024', description:'Завершённый турнир.',
+      date:'2024-10-12', place:'Москва, ДС «Динамо»', organizer:'SETKA PRO', status:'finished',
+      createdAt: Date.now()-86400000*200, updatedAt: Date.now()-86400000*180 },
+  ];
+
+  const categories=[
+    { id:'cat1', tournamentId:'t1', name:'МУЖЧИНЫ — ДО 70 КГ — ПРАВАЯ РУКА', gender:'male', weightMax:70, hand:'right', format:'single-elim', athleteIds:[] },
+    { id:'cat2', tournamentId:'t1', name:'МУЖЧИНЫ — ДО 80 КГ — ПРАВАЯ РУКА', gender:'male', weightMax:80, hand:'right', format:'double-elim', athleteIds:[] },
+    { id:'cat3', tournamentId:'t1', name:'МУЖЧИНЫ — 90+ КГ — ПРАВАЯ РУКА',   gender:'male', weightMin:90, hand:'right', format:'round-robin', athleteIds:[] },
+    { id:'cat4', tournamentId:'t1', name:'ЖЕНЩИНЫ — ДО 65 КГ — ПРАВАЯ РУКА', gender:'female', weightMax:65, hand:'right', format:'single-elim', athleteIds:[] },
+    { id:'cat5', tournamentId:'t2', name:'ЮНИОРЫ — ДО 75 КГ — ПРАВАЯ РУКА',  gender:'male', weightMax:75, hand:'right', format:'groups-playoff', athleteIds:[] },
+  ];
+
+  const females = athletes.filter(a=>FEMALE_FIRST.indexOf(a.firstName)>=0);
+  const males = athletes.filter(a=>FEMALE_FIRST.indexOf(a.firstName)<0);
+
+  categories[0].athleteIds = males.filter(a=>a.weight<=70).slice(0,8).map(a=>a.id);
+  categories[1].athleteIds = males.filter(a=>a.weight>70 && a.weight<=80).slice(0,16).map(a=>a.id);
+  categories[2].athleteIds = males.filter(a=>a.weight>80).slice(0,8).map(a=>a.id);
+  categories[3].athleteIds = females.slice(0,8).map(a=>a.id);
+  categories[4].athleteIds = males.slice(0,16).map(a=>a.id);
+
+  const brackets=[];
+  const matches=[];
+  for(const cat of categories){
+    if(cat.athleteIds.length < 2) continue;
+    const r = buildBracket(cat.tournamentId, cat.id, cat.name, cat.format, cat.athleteIds);
+    brackets.push(r.bracket); matches.push.apply(matches, r.matches);
+  }
+
+  for(const m of matches){
+    if(m.status==='filled' && m.athleteAId && m.athleteBId && Math.random()<0.55){
+      const aWins = Math.random()<0.5;
+      m.scoreA = aWins ? 2 : Math.floor(Math.random()*2);
+      m.scoreB = aWins ? Math.floor(Math.random()*2) : 2;
+      m.winnerId = aWins ? m.athleteAId : m.athleteBId;
+      m.loserId = aWins ? m.athleteBId : m.athleteAId;
+      m.status='completed';
+    }
+  }
+  const recomputed = recomputeBracket(matches);
+  matches.length = 0; matches.push.apply(matches, recomputed);
+
+  const history=[
+    {id:uid(),timestamp:Date.now()-3600000, bracketId:brackets[0]?brackets[0].id:'', action:'Изменён результат', details:'Матч #1: 2:1'},
+    {id:uid(),timestamp:Date.now()-7200000, bracketId:brackets[0]?brackets[0].id:'', action:'Перемещён спортсмен', details:'Позиция #4'},
+    {id:uid(),timestamp:Date.now()-86400000, bracketId:brackets[0]?brackets[0].id:'', action:'Создана сетка', details:'Single Elimination'},
+  ];
+
+  DB.clubs = clubs;
+  DB.athletes = athletes;
+  DB.tournaments = tournaments;
+  DB.categories = categories;
+  DB.brackets = brackets;
+  DB.matches = matches;
+  DB.history = history;
+  DB.templates = [];
+  DB.trash = [];
+  DB.user = null;
+  DB.undoStack = []; DB.redoStack = [];
+  DB.save();
+}
+
+/* ============================================================
+   ROUTER
+   ============================================================ */
+let currentPath = '/';
+let currentTournamentId = null;
+let currentBracketId = null;
+
+function parseHash(){
+  const raw = location.hash.replace(/^#/, '') || '/';
+  const parts = raw.split('/').filter(Boolean);
+  currentTournamentId = null;
+  currentBracketId = null;
+  if(parts[0]==='tournaments' && parts[1]){ currentTournamentId=parts[1]; currentPath='/tournaments/:id'; }
+  else if(parts[0]==='brackets' && parts[1]){ currentBracketId=parts[1]; currentPath='/brackets/:id'; }
+  else currentPath = '/' + parts.join('/');
+}
+function go(path){
+  if(location.hash === '#'+path){ renderApp(); return; }
+  location.hash = '#'+path;
+}
+window.addEventListener('hashchange', ()=>{ parseHash(); renderApp(); });
+
+/* ============================================================
+   RENDER
+   ============================================================ */
+function renderApp(){
+  try {
+    const root = document.getElementById('root');
+    if(!root) return;
+    if(!DB.tournaments.length && !DB.athletes.length && !DB.trash.length){ seedDemo(); }
+
+    if(currentPath === '/login'){
+      root.innerHTML = safe(renderLoginPage, 'login');
+      return;
+    }
+    if(currentPath === '/brackets/:id'){
+      root.innerHTML = safe(()=>renderEditorPage(currentBracketId), 'editor');
+      safe(()=>bindEditor(currentBracketId), 'bindEditor');
+      return;
+    }
+
+    let pageHTML;
+    if(currentPath === '/') pageHTML = safe(renderHome, 'home');
+    else if(currentPath === '/tournaments') pageHTML = safe(renderTournaments, 'tournaments');
+    else if(currentPath === '/tournaments/:id') pageHTML = safe(()=>renderTournamentView(currentTournamentId), 'tournamentView');
+    else if(currentPath === '/athletes') pageHTML = safe(renderAthletes, 'athletes');
+    else if(currentPath === '/categories') pageHTML = safe(renderCategories, 'categories');
+    else if(currentPath === '/brackets') pageHTML = safe(renderBrackets, 'brackets');
+    else if(currentPath === '/export') pageHTML = safe(renderExport, 'export');
+    else if(currentPath === '/trash') pageHTML = safe(renderTrash, 'trash');
+    else if(currentPath === '/settings') pageHTML = safe(renderSettings, 'settings');
+    else pageHTML = safe(renderHome, 'fallback');
+
+    root.innerHTML = `
+      <div class="app">
+        ${safe(renderHeader, 'header')}
+        <div class="body">
+          ${safe(renderSidebar, 'sidebar')}
+          <main>${pageHTML}</main>
+        </div>
+      </div>
+    `;
+  } catch(e){
+    console.error(e);
+    showBootError('renderApp: ' + e.message + '\n\n' + (e.stack||''));
+  }
+}
+
+function renderHeader(){
+  const u = DB.user;
+  return `
+  <header class="header">
+    <div class="header-inner">
+      <button class="brand" onclick="go('/')">
+        ${logoSVG(40)}
+        <div class="brand-text">
+          <div class="brand-title">SETKA PRO</div>
+          <div class="brand-sub">ARM WRESTLING TOURNAMENT SYSTEM</div>
+        </div>
+      </button>
+      <div style="flex:1"></div>
+      <button class="btn ghost xs" onclick="globalUndo()" ${DB.undoStack.length?'':'disabled'} title="UNDO">↶ UNDO</button>
+      <button class="btn ghost xs" onclick="globalRedo()" ${DB.redoStack.length?'':'disabled'} title="REDO">↷ REDO</button>
+      <div style="flex:1"></div>
+      ${u ? `
+        <div style="text-align:right;line-height:1">
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase">${esc(u.name)}</div>
+          <div style="font-size:9px;color:var(--blood-l);letter-spacing:.2em;text-transform:uppercase;margin-top:4px">${esc(u.role)}</div>
+        </div>
+        <button class="btn ghost xs" onclick="logout()">ВЫЙТИ</button>
+      ` : `<button class="btn primary xs" onclick="go('/login')">ВОЙТИ</button>`}
+    </div>
+  </header>`;
+}
+
+function logoSVG(size){
+  size = size || 40;
+  return `<svg width="${size}" height="${size}" viewBox="0 0 100 100" style="flex-shrink:0">
+    <defs>
+      <linearGradient id="lg-metal" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#e8e8e8"/>
+        <stop offset="0.5" stop-color="#9a9a9a"/>
+        <stop offset="1" stop-color="#3a3a3a"/>
+      </linearGradient>
+    </defs>
+    <rect x="2" y="2" width="96" height="96" fill="#0a0a0a" stroke="#2a2a2a" stroke-width="2"/>
+    <path d="M15 30 L40 55 L35 60 L10 35 Z" fill="url(#lg-metal)"/>
+    <path d="M85 30 L60 55 L65 60 L90 35 Z" fill="url(#lg-metal)"/>
+    <rect x="40" y="55" width="20" height="8" fill="#c1121f"/>
+    <text x="50" y="22" text-anchor="middle" fill="#c1121f" font-family="Oswald, sans-serif" font-size="12" font-weight="700" letter-spacing="3">АРМ</text>
+    <text x="50" y="88" text-anchor="middle" fill="#fff" font-family="Oswald, sans-serif" font-size="16" font-weight="700" letter-spacing="2">МСК</text>
+    <text x="50" y="99" text-anchor="middle" fill="#e8e8e8" font-family="Oswald, sans-serif" font-size="10" font-weight="700" letter-spacing="4">37</text>
+  </svg>`;
+}
+
+function renderSidebar(){
+  const trashCount = DB.trash.length;
+  const items = [
+    ['/', 'ГЛАВНАЯ', '◆'],
+    ['/tournaments', 'ТУРНИРЫ', '▣'],
+    ['/athletes', 'УЧАСТНИКИ', '◆'],
+    ['/categories', 'КАТЕГОРИИ', '▤'],
+    ['/brackets', 'СЕТКИ', '⛓'],
+    ['/export', 'ЭКСПОРТ', '↧'],
+    ['/trash', 'КОРЗИНА', '🗑', trashCount],
+    ['/settings', 'НАСТРОЙКИ', '⚙'],
+  ];
+  return `
+    <aside class="sidebar">
+      <div class="sidebar-inner">
+        ${items.map(function(it){
+          const active = currentPath===it[0];
+          const badge = it[3] ? `<span class="badge">${it[3]}</span>` : '';
+          return `<button class="navlink ${active?'active':''}" onclick="go('${it[0]}')">
+            <span class="ic">${it[2]}</span>${it[1]}${badge}
+          </button>`;
+        }).join('')}
+      </div>
+      <div class="sidebar-footer">
+        <b>SETKA PRO</b>
+        Система управления соревнованиями по армрестлингу.
+      </div>
+    </aside>
+  `;
+}
+
+/* ---------- Home ---------- */
+function renderHome(){
+  const t = DB.tournaments;
+  const last = t.slice().sort((a,b)=>b.updatedAt-a.updatedAt).slice(0,4);
+  return `
+  <div>
+    <section class="hero">
+      <div class="hero-inner">
+        <div class="hero-tag">
+          <span class="hero-dot"></span>
+          <span class="hero-label">Arm Wrestling · Bracket System</span>
+        </div>
+        <h1>SETKA <span>PRO</span></h1>
+        <h2>Редактор турнирных сеток</h2>
+        <p>Создавайте. Редактируйте. Управляйте.</p>
+        <p style="max-width:680px;margin:12px auto 0;color:var(--bone-dim);font-size:11px;line-height:1.6">Рабочий локальный режим: изменения сохраняются в этом браузере. Для совместной работы с разных устройств потребуется отдельная настройка облачной синхронизации.</p>
+        <div class="hero-btns">
+          <button class="btn primary" onclick="go('/tournaments')">▸ СОЗДАТЬ ТУРНИР</button>
+          <button class="btn" onclick="go('/tournaments')">▸ ОТКРЫТЬ ТУРНИРЫ</button>
+        </div>
+        <div class="hero-stats">
+          ${statCard('ТУРНИРОВ', DB.tournaments.length)}
+          ${statCard('КАТЕГОРИЙ', DB.categories.length)}
+          ${statCard('СПОРТСМЕНОВ', DB.athletes.length)}
+          ${statCard('СЕТОК', DB.brackets.length)}
+        </div>
+      </div>
+    </section>
+
+    <section style="padding:40px 32px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+        <h3 style="font-size:16px;letter-spacing:.2em;text-transform:uppercase;font-weight:700">Последние турниры</h3>
+        <button class="btn ghost xs" onclick="go('/tournaments')">ВСЕ →</button>
+      </div>
+      <div class="grid c3">
+        ${last.map(function(t){ return tournamentCard(t, false); }).join('') || '<div class="empty">Нет турниров</div>'}
+      </div>
+    </section>
+  </div>`;
+}
+function statCard(label, value){
+  return `<div class="stat">
+    <div class="stat-num">${String(value).padStart(2,'0')}</div>
+    <div class="stat-label">${label}</div>
+  </div>`;
+}
+function tournamentCard(t, withCheckbox){
+  const cats = DB.categories.filter(c=>c.tournamentId===t.id);
+  const brs = DB.brackets.filter(b=>b.tournamentId===t.id);
+  const athSet = {};
+  cats.forEach(c=>c.athleteIds.forEach(id=>{ athSet[id]=1; }));
+  const ath = Object.keys(athSet).length;
+  const st = t.status==='prep'?'red':t.status==='finished'?'green':'gray';
+  const stLabel = {draft:'ЧЕРНОВИК',prep:'ПОДГОТОВКА',finished:'ЗАВЕРШЁН',archive:'АРХИВ'}[t.status]||t.status;
+  const selected = bulkSelected.indexOf(t.id)>=0;
+  return `
+    <div class="card t-card">
+      ${withCheckbox ? `<input type="checkbox" class="t-card-select" ${selected?'checked':''} onchange="toggleBulkSelect('${t.id}',this.checked)">` : ''}
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:12px;${withCheckbox?'padding-left:26px;':''}">
+        <div class="date">${fmtDate(t.date)}</div>
+        <span class="tag ${st}">${stLabel}</span>
+      </div>
+      <div class="title" onclick="go('/tournaments/${t.id}')">${esc(t.name)}</div>
+      <div class="place">${esc(t.place||'')}</div>
+      <div class="t-stats">
+        <div class="mini-stat"><div class="v">${cats.length}</div><div class="l">КАТ.</div></div>
+        <div class="mini-stat"><div class="v">${ath}</div><div class="l">СПОРТ.</div></div>
+        <div class="mini-stat"><div class="v">${brs.length}</div><div class="l">СЕТОК</div></div>
+      </div>
+      <div class="t-card-actions">
+        <button class="btn primary xs" onclick="go('/tournaments/${t.id}')">ОТКРЫТЬ</button>
+        <button class="btn ghost xs" onclick="exportTournamentJSON('${t.id}')" title="Скачать JSON">↧ JSON</button>
+        <button class="btn danger xs" onclick="deleteTournamentConfirm('${t.id}')" title="Удалить">🗑</button>
+      </div>
+    </div>`;
+}
+
+/* ---------- Tournaments list ---------- */
+let bulkSelected = [];
+function renderTournaments(){
+  return `
+  <div class="page">
+    <div class="page-head">
+      <div>
+        <div class="page-sub">Управление</div>
+        <h1 class="page-title">Турниры</h1>
+      </div>
+      <div style="display:flex;gap:8px">
+        ${bulkSelected.length ? `<button class="btn danger" onclick="bulkDeleteTournaments()">УДАЛИТЬ (${bulkSelected.length})</button>` : ''}
+        <button class="btn primary" onclick="openCreateTournament()">+ СОЗДАТЬ ТУРНИР</button>
+      </div>
+    </div>
+    ${bulkSelected.length ? `
+      <div class="bulk-bar">
+        <span>Выбрано: <span class="count">${bulkSelected.length}</span></span>
+        <div style="flex:1"></div>
+        <button class="btn ghost xs" onclick="clearBulkSelect()">СНЯТЬ ВЫБОР</button>
+        <button class="btn danger xs" onclick="bulkDeleteTournaments()">УДАЛИТЬ</button>
+      </div>
+    ` : ''}
+    ${DB.tournaments.length === 0
+      ? `<div class="card empty">Нет турниров. <br><br><button class="btn primary" onclick="openCreateTournament()">СОЗДАТЬ ПЕРВЫЙ</button></div>`
+      : `<div class="grid c3">${DB.tournaments.map(function(t){ return tournamentCard(t, true); }).join('')}</div>`}
+  </div>`;
+}
+function toggleBulkSelect(id, checked){
+  if(checked){ if(bulkSelected.indexOf(id)<0) bulkSelected.push(id); }
+  else { bulkSelected = bulkSelected.filter(x=>x!==id); }
+  renderApp();
+}
+function clearBulkSelect(){ bulkSelected = []; renderApp(); }
+
+/* ---------- Tournament view ---------- */
+function renderTournamentView(id){
+  const t = DB.tournaments.filter(x=>x.id===id)[0];
+  if(!t) return `<div class="page"><div class="empty">Турнир не найден</div></div>`;
+  const cats = DB.categories.filter(c=>c.tournamentId===t.id);
+  const brs = DB.brackets.filter(b=>b.tournamentId===t.id);
+  const athSet = {};
+  cats.forEach(c=>c.athleteIds.forEach(a=>{ athSet[a]=1; }));
+  const athCount = Object.keys(athSet).length;
+  const stLabel = {draft:'ЧЕРНОВИК',prep:'ПОДГОТОВКА',finished:'ЗАВЕРШЁН',archive:'АРХИВ'}[t.status]||t.status;
+  return `
+  <div class="page">
+    <div class="page-sub">
+      <a href="#/tournaments" style="color:var(--bone-faint)">ТУРНИРЫ</a> / ${esc(t.name)}
+    </div>
+    <div class="page-head">
+      <div>
+        <h1 class="page-title">${esc(t.name)}</h1>
+        <div style="font-size:12px;color:var(--bone-faint);letter-spacing:.2em;text-transform:uppercase;margin-top:6px">
+          ${fmtDate(t.date)} · ${esc(t.place||'')}
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn ghost" onclick="openEditTournament('${t.id}')">РЕДАКТИРОВАТЬ</button>
+        <button class="btn primary" onclick="openCreateCategory('${t.id}')">+ КАТЕГОРИЯ</button>
+        <button class="btn ghost" onclick="exportTournamentJSON('${t.id}')">↧ JSON</button>
+        <button class="btn danger" onclick="deleteTournamentConfirm('${t.id}')">🗑 УДАЛИТЬ</button>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:24px;align-items:start">
+      <div>
+        <h3 style="font-size:12px;letter-spacing:.3em;text-transform:uppercase;color:var(--bone-dim);margin-bottom:12px">Категории и сетки</h3>
+        ${cats.length === 0 ? `<div class="card empty">Нет категорий</div>` : cats.map(categoryCard).join('')}
+      </div>
+      <div>
+        <h3 style="font-size:12px;letter-spacing:.3em;text-transform:uppercase;color:var(--bone-dim);margin-bottom:12px">Сводка</h3>
+        <div class="card" style="padding:16px">
+          ${row('Статус', `<span class="tag red">${stLabel}</span>`)}
+          ${row('Организатор', esc(t.organizer||''))}
+          ${row('Место', esc(t.place||''))}
+          ${row('Дата', fmtDate(t.date))}
+          ${row('Категорий', String(cats.length))}
+          ${row('Сеток', String(brs.length))}
+          ${row('Спортсменов', String(athCount))}
+          ${t.description ? `<div style="border-top:1px solid var(--steel);margin-top:12px;padding-top:12px;font-size:12px;color:var(--bone-dim)">${esc(t.description)}</div>` : ''}
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+function row(l,v){ return `<div class="row"><span class="rl">${l}</span><span class="rv">${v}</span></div>`; }
+function categoryCard(cat){
+  const brs = DB.brackets.filter(b=>b.categoryId===cat.id);
+  return `
+    <div class="card cat-card">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px">
+        <div>
+          <div class="cat-name">${esc(cat.name)}</div>
+          <div style="font-size:10px;color:var(--bone-faint);letter-spacing:.15em;text-transform:uppercase;margin-bottom:10px">
+            ${formatLabel(cat.format)} · ${cat.athleteIds.length} УЧАСТНИКОВ
+          </div>
+        </div>
+        <div style="display:flex;gap:6px">
+          <button class="btn primary xs" onclick="openBracketWizard('${cat.id}')">+ СЕТКА</button>
+          <button class="btn danger xs" onclick="deleteCategoryConfirm('${cat.id}')" title="Удалить категорию">🗑</button>
+        </div>
+      </div>
+      ${brs.length ? `
+        <div class="br-list">
+          ${brs.map(b=>`
+            <div class="br-item">
+              <div style="display:flex;align-items:center;gap:10px">
+                <span style="color:var(--blood-l);font-size:16px">⛓</span>
+                <div>
+                  <div class="name">${esc(b.name.length>40?b.name.slice(0,40)+'…':b.name)}</div>
+                  <div class="meta">${b.matchIds.length} ПОЕДИНКОВ · ${formatLabel(b.format)}</div>
+                </div>
+              </div>
+              <div style="display:flex;gap:6px">
+                <button class="btn primary xs" onclick="event.stopPropagation();go('/brackets/${b.id}')">РЕДАКТОР</button>
+                <button class="btn danger xs" onclick="event.stopPropagation();deleteBracketConfirm('${b.id}')">×</button>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      ` : ''}
+    </div>`;
+}
+function formatLabel(f){
+  return { 'single-elim':'SINGLE ELIMINATION', 'double-elim':'DOUBLE ELIMINATION',
+    'round-robin':'ROUND ROBIN', 'groups-playoff':'GROUPS + PLAYOFF' }[f] || f;
+}
+
+/* ---------- Athletes ---------- */
+function renderAthletes(){
+  const athletes = DB.athletes.slice().sort((a,b)=> (a.lastName+a.firstName).localeCompare(b.lastName+b.firstName,'ru'));
+  return `
+  <div class="page">
+    <div class="page-head">
+      <div>
+        <div class="page-sub">Реестр</div>
+        <h1 class="page-title">Участники</h1>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <input class="input" style="max-width:220px" placeholder="ПОИСК..." oninput="filterAthletes(this.value)">
+        <button class="btn ghost" onclick="openImportAthletes()">ИМПОРТ CSV</button>
+        <button class="btn primary" onclick="openAthleteForm()">+ ДОБАВИТЬ</button>
+      </div>
+    </div>
+    <div class="card" style="padding:0;overflow:hidden">
+      <table class="table">
+        <thead><tr>
+          <th>Спортсмен</th><th>Клуб</th><th>Город</th><th>Вес</th><th>Рука</th><th class="right">Действия</th>
+        </tr></thead>
+        <tbody id="ath-tbody">${athletes.map(athleteRow).join('')}</tbody>
+      </table>
+    </div>
+  </div>`;
+}
+function athleteRow(a){
+  const search = (a.firstName+' '+a.lastName+' '+a.club+' '+a.city).toLowerCase();
+  return `<tr data-search="${esc(search)}">
+    <td class="name">${esc(a.lastName)} ${esc(a.firstName)}</td>
+    <td class="dim">${esc(a.club)}</td>
+    <td class="dim">${esc(a.city)}</td>
+    <td class="mono">${a.weight} кг</td>
+    <td class="dim">${a.hand==='right'?'ПРАВАЯ':'ЛЕВАЯ'}</td>
+    <td class="right">
+      <button class="btn ghost xs" onclick="openAthleteForm('${a.id}')">ИЗМЕНИТЬ</button>
+      <button class="btn danger xs" onclick="deleteAthleteConfirm('${a.id}')">×</button>
+    </td>
+  </tr>`;
+}
+
+/* ---------- Categories ---------- */
+function renderCategories(){
+  return `
+  <div class="page">
+    <div class="page-sub">Справочник</div>
+    <h1 class="page-title" style="margin-bottom:24px">Категории</h1>
+    <div class="grid c2">
+      ${DB.categories.map(function(c){
+        const t = DB.tournaments.filter(x=>x.id===c.tournamentId)[0];
+        const brs = DB.brackets.filter(b=>b.categoryId===c.id);
+        return `<div class="card cat-card">
+          <div style="font-size:10px;letter-spacing:.2em;color:var(--bone-faint);text-transform:uppercase">${esc(t?t.name:'')}</div>
+          <div class="cat-name">${esc(c.name)}</div>
+          <div class="cat-tags">
+            <span class="tag gray">${formatLabel(c.format)}</span>
+            <span class="tag gray">${c.athleteIds.length} СПОРТСМ.</span>
+            <span class="tag red">${brs.length} СЕТОК</span>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            ${brs.map(b=>`<button class="btn primary xs" onclick="go('/brackets/${b.id}')">${esc(b.name.length>20?b.name.slice(0,20)+'…':b.name)}</button>`).join('')}
+            <button class="btn danger xs" onclick="deleteCategoryConfirm('${c.id}')">🗑</button>
+          </div>
+        </div>`;
+      }).join('') || '<div class="empty">Нет категорий</div>'}
+    </div>
+  </div>`;
+}
+
+/* ---------- Brackets list ---------- */
+function renderBrackets(){
+  return `
+  <div class="page">
+    <div class="page-sub">Все</div>
+    <h1 class="page-title" style="margin-bottom:24px">Турнирные сетки</h1>
+    <div class="grid c2">
+      ${DB.brackets.map(function(b){
+        const t = DB.tournaments.filter(x=>x.id===b.tournamentId)[0];
+        return `<div class="card cat-card">
+          <div style="font-size:10px;letter-spacing:.2em;color:var(--bone-faint);text-transform:uppercase">${esc(t?t.name:'')}</div>
+          <div class="cat-name">${esc(b.name)}</div>
+          <div class="cat-tags">
+            <span class="tag red">${formatLabel(b.format)}</span>
+            <span class="tag gray">${b.matchIds.length} МАТЧ</span>
+          </div>
+          <div style="font-size:10px;color:var(--bone-faint);margin-bottom:12px">
+            Обновлено: ${fmtDateTime(b.updatedAt)}
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn primary xs" onclick="go('/brackets/${b.id}')">ОТКРЫТЬ</button>
+            <button class="btn danger xs" onclick="deleteBracketConfirm('${b.id}')">🗑</button>
+          </div>
+        </div>`;
+      }).join('') || '<div class="empty">Пока нет сеток</div>'}
+    </div>
+  </div>`;
+}
+
+/* ---------- Export page ---------- */
+function renderExport(){
+  return `
+  <div class="page">
+    <div class="page-sub">Файлы</div>
+    <h1 class="page-title" style="margin-bottom:24px">Экспорт</h1>
+    <div class="grid c2">
+      ${DB.brackets.map(function(b){
+        const t = DB.tournaments.filter(x=>x.id===b.tournamentId)[0];
+        return `<div class="card cat-card">
+          <div style="font-size:10px;letter-spacing:.2em;color:var(--bone-faint);text-transform:uppercase">${esc(t?t.name:'')}</div>
+          <div class="cat-name">${esc(b.name)}</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn primary xs" onclick="go('/brackets/${b.id}')">ОТКРЫТЬ →</button>
+            <button class="btn ghost xs" onclick="exportSVG('${b.id}')">SVG</button>
+            <button class="btn ghost xs" onclick="exportPNG('${b.id}')">PNG</button>
+            <button class="btn ghost xs" onclick="printBracket('${b.id}')">ПЕЧАТЬ</button>
+          </div>
+        </div>`;
+      }).join('') || '<div class="empty">Нет сеток</div>'}
+    </div>
+  </div>`;
+}
+
+/* ---------- Trash ---------- */
+function renderTrash(){
+  return `
+  <div class="page">
+    <div class="page-head">
+      <div>
+        <div class="page-sub">Восстановление</div>
+        <h1 class="page-title">Корзина</h1>
+      </div>
+      <div style="display:flex;gap:8px">
+        ${DB.trash.length ? `<button class="btn danger" onclick="emptyTrash()">ОЧИСТИТЬ ВСЁ</button>` : ''}
+      </div>
+    </div>
+    ${DB.trash.length === 0
+      ? `<div class="card empty">Корзина пуста</div>`
+      : `<div class="trash-list">
+          ${DB.trash.map(function(item){
+            const t = item.tournament;
+            const cats = item.categories || [];
+            const brs = item.brackets || [];
+            const totalMatches = brs.reduce((s,b)=>s+(b.matchIds?b.matchIds.length:0),0);
+            return `<div class="trash-item">
+              <div class="info">
+                <div class="name">${esc(t.name)}</div>
+                <div class="meta">${fmtDateTime(item.deletedAt)} · ${cats.length} КАТ. · ${brs.length} СЕТОК · ${totalMatches} МАТЧ</div>
+              </div>
+              <div class="actions">
+                <button class="btn primary xs" onclick="restoreTournament('${item.id}')">ВОССТАНОВИТЬ</button>
+                <button class="btn ghost xs" onclick="exportTrashJSON('${item.id}')">↧ JSON</button>
+                <button class="btn danger xs" onclick="permanentlyDelete('${item.id}')">УДАЛИТЬ</button>
+              </div>
+            </div>`;
+          }).join('')}
+        </div>`}
+  </div>`;
+}
+
+/* ---------- Settings ---------- */
+function renderSettings(){
+  return `
+  <div class="page">
+    <div class="page-sub">Система</div>
+    <h1 class="page-title" style="margin-bottom:24px">Настройки</h1>
+    <div class="grid c2">
+      <div class="card" style="padding:16px">
+        <div style="font-size:13px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;margin-bottom:12px">Сводка данных</div>
+        ${row('Турниров', String(DB.tournaments.length))}
+        ${row('Категорий', String(DB.categories.length))}
+        ${row('Спортсменов', String(DB.athletes.length))}
+        ${row('Сеток', String(DB.brackets.length))}
+        ${row('Поединков', String(DB.matches.length))}
+        ${row('В корзине', String(DB.trash.length))}
+      </div>
+      <div class="card" style="padding:16px">
+        <div style="font-size:13px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;margin-bottom:12px">Обслуживание</div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <button class="btn ghost" onclick="exportAllJSON()">↧ ЭКСПОРТ ВСЕХ ДАННЫХ</button>
+          <button class="btn ghost" onclick="resetStore()">СБРОСИТЬ ХРАНИЛИЩЕ</button>
+          <button class="btn primary" onclick="reloadDemo()">ЗАГРУЗИТЬ ДЕМО-ДАННЫЕ</button>
+        </div>
+        <div style="font-size:11px;color:var(--bone-faint);margin-top:16px;line-height:1.6">
+          Данные этой версии сохраняются в браузере на данном устройстве (localStorage), а не синхронизируются между пользователями. Используйте экспорт резервной копии регулярно. Роли входа в этой версии демонстрационные и не являются защитой доступа. Удалённые турниры попадают в корзину.
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+/* ---------- Login ---------- */
+function renderLoginPage(){
+  return `
+  <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:32px">
+    <div class="card" style="width:100%;max-width:400px;padding:32px">
+      <div style="font-size:22px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;margin-bottom:4px">Вход в систему</div>
+      <div style="font-size:10px;letter-spacing:.3em;color:var(--bone-faint);text-transform:uppercase;margin-bottom:24px">SETKA PRO · TOURNAMENT MANAGER</div>
+      <div style="margin-bottom:12px"><label class="label">Имя</label><input class="input" id="login-name" value="Организатор"></div>
+      <div style="margin-bottom:12px"><label class="label">Роль</label>
+        <select class="input" id="login-role">
+          <option value="guest">ГОСТЬ</option><option value="editor">РЕДАКТОР</option>
+          <option value="organizer" selected>ОРГАНИЗАТОР</option><option value="admin">АДМИНИСТРАТОР</option>
+        </select>
+      </div>
+      <div style="margin-bottom:16px"><label class="label">Пароль</label><input class="input" type="password" value="demo"></div>
+      <button class="btn primary" style="width:100%;justify-content:center" onclick="doLogin()">ВОЙТИ</button>
+    </div>
+  </div>`;
+}
+
+/* ============================================================
+   TOURNAMENT DELETE / RESTORE / EXPORT
+   ============================================================ */
+function deleteTournamentConfirm(id){
+  const t = DB.tournaments.filter(x=>x.id===id)[0];
+  if(!t) return;
+  const cats = DB.categories.filter(c=>c.tournamentId===id);
+  const brs = DB.brackets.filter(b=>b.tournamentId===id);
+  const matchCount = brs.reduce((s,b)=>s+b.matchIds.length, 0);
+  const msg = 'Удалить турнир «' + t.name + '»?\n\n' +
+    'В корзину будут помещены:\n' +
+    '• Категорий: ' + cats.length + '\n' +
+    '• Сеток: ' + brs.length + '\n' +
+    '• Поединков: ' + matchCount + '\n\n' +
+    'Турнир можно будет восстановить из «Корзины».\n\n' +
+    'Продолжить?';
+  if(!confirm(msg)) return;
+
+  // Второе подтверждение, если в турнире много данных
+  if(cats.length + brs.length > 3){
+    if(!confirm('Данных много (' + (cats.length + brs.length) + ' объектов). Точно удалить?')) return;
+  }
+
+  DB.pushUndo();
+
+  // Формируем объект для корзины (полная копия)
+  const trashItem = {
+    id: uid(),
+    deletedAt: Date.now(),
+    tournament: JSON.parse(JSON.stringify(t)),
+    categories: JSON.parse(JSON.stringify(cats)),
+    brackets: JSON.parse(JSON.stringify(brs)),
+    matches: JSON.parse(JSON.stringify(DB.matches.filter(m => brs.some(b=>b.id===m.bracketId)))),
+    history: JSON.parse(JSON.stringify(DB.history.filter(h => brs.some(b=>b.id===h.bracketId)))),
+  };
+
+  // Удаляем связанное
+  const bracketIds = brs.map(b=>b.id);
+  DB.matches = DB.matches.filter(m => bracketIds.indexOf(m.bracketId) < 0);
+  DB.brackets = DB.brackets.filter(b => b.tournamentId !== id);
+  DB.categories = DB.categories.filter(c => c.tournamentId !== id);
+  DB.tournaments = DB.tournaments.filter(x => x.id !== id);
+  DB.history = DB.history.filter(h => bracketIds.indexOf(h.bracketId) < 0);
+
+  // Кладём в корзину
+  DB.trash.unshift(trashItem);
+  if(DB.trash.length > 50) DB.trash.length = 50;
+
+  DB.log('', 'Удалён турнир', t.name);
+  DB.save();
+
+  // Убираем из массового выбора
+  bulkSelected = bulkSelected.filter(x=>x!==id);
+
+  go('/tournaments');
+}
+
+function bulkDeleteTournaments(){
+  if(!bulkSelected.length) return;
+  if(!confirm('Удалить ' + bulkSelected.length + ' турнир(ов)?\nОни попадут в корзину.')) return;
+  DB.pushUndo();
+
+  const itemsToDelete = DB.tournaments.filter(t => bulkSelected.indexOf(t.id)>=0);
+  for(const t of itemsToDelete){
+    const cats = DB.categories.filter(c=>c.tournamentId===t.id);
+    const brs = DB.brackets.filter(b=>b.tournamentId===t.id);
+    const bracketIds = brs.map(b=>b.id);
+    const item = {
+      id: uid(),
+      deletedAt: Date.now(),
+      tournament: JSON.parse(JSON.stringify(t)),
+      categories: JSON.parse(JSON.stringify(cats)),
+      brackets: JSON.parse(JSON.stringify(brs)),
+      matches: JSON.parse(JSON.stringify(DB.matches.filter(m => bracketIds.indexOf(m.bracketId)>=0))),
+      history: JSON.parse(JSON.stringify(DB.history.filter(h => bracketIds.indexOf(h.bracketId)>=0))),
+    };
+    DB.trash.unshift(item);
+    DB.matches = DB.matches.filter(m => bracketIds.indexOf(m.bracketId) < 0);
+    DB.brackets = DB.brackets.filter(b => b.tournamentId !== t.id);
+    DB.categories = DB.categories.filter(c => c.tournamentId !== t.id);
+    DB.history = DB.history.filter(h => bracketIds.indexOf(h.bracketId) < 0);
+  }
+  DB.tournaments = DB.tournaments.filter(t => bulkSelected.indexOf(t.id)<0);
+  DB.log('', 'Массовое удаление', bulkSelected.length + ' турниров');
+  bulkSelected = [];
+  DB.save();
+  go('/tournaments');
+}
+
+function restoreTournament(trashId){
+  const item = DB.trash.filter(x=>x.id===trashId)[0];
+  if(!item) return;
+  DB.pushUndo();
+
+  // Проверка коллизий ID
+  const idConflict = DB.tournaments.some(t => t.id === item.tournament.id);
+  if(idConflict){
+    item.tournament.id = uid();
+    item.categories.forEach(c => c.tournamentId = item.tournament.id);
+    item.brackets.forEach(b => b.tournamentId = item.tournament.id);
+  }
+
+  DB.tournaments.push(item.tournament);
+  DB.categories.push.apply(DB.categories, item.categories || []);
+  DB.brackets.push.apply(DB.brackets, item.brackets || []);
+  DB.matches.push.apply(DB.matches, item.matches || []);
+  DB.history.push.apply(DB.history, item.history || []);
+
+  DB.trash = DB.trash.filter(x => x.id !== trashId);
+  DB.log('', 'Восстановлен турнир', item.tournament.name);
+  DB.save();
+  go('/tournaments/' + item.tournament.id);
+}
+
+function permanentlyDelete(trashId){
+  const item = DB.trash.filter(x=>x.id===trashId)[0];
+  if(!item) return;
+  if(!confirm('Удалить «' + item.tournament.name + '» НАВСЕГДА?\n\nЭто действие необратимо.')) return;
+  DB.pushUndo();
+  DB.trash = DB.trash.filter(x => x.id !== trashId);
+  DB.log('', 'Удалён навсегда', item.tournament.name);
+  DB.save();
+  renderApp();
+}
+
+function emptyTrash(){
+  if(!confirm('Очистить корзину полностью?\n\n' + DB.trash.length + ' турнир(ов) будут удалены безвозвратно.')) return;
+  DB.pushUndo();
+  DB.trash = [];
+  DB.save();
+  renderApp();
+}
+
+function exportTournamentJSON(id){
+  const t = DB.tournaments.filter(x=>x.id===id)[0];
+  if(!t) return;
+  const cats = DB.categories.filter(c=>c.tournamentId===id);
+  const brs = DB.brackets.filter(b=>b.tournamentId===id);
+  const brIds = brs.map(b=>b.id);
+  const data = {
+    tournament: t,
+    categories: cats,
+    brackets: brs,
+    matches: DB.matches.filter(m=>brIds.indexOf(m.bracketId)>=0),
+    history: DB.history.filter(h=>brIds.indexOf(h.bracketId)>=0),
+    exportedAt: new Date().toISOString(),
+    version: 3,
+  };
+  downloadJSON(data, t.name.replace(/[^\wа-яё\-]+/gi,'_') + '.json');
+}
+function exportTrashJSON(trashId){
+  const item = DB.trash.filter(x=>x.id===trashId)[0];
+  if(!item) return;
+  downloadJSON(item, 'trash_' + item.tournament.name.replace(/[^\wа-яё\-]+/gi,'_') + '.json');
+}
+function exportAllJSON(){
+  const data = {
+    clubs: DB.clubs, athletes: DB.athletes, tournaments: DB.tournaments,
+    categories: DB.categories, brackets: DB.brackets, matches: DB.matches,
+    templates: DB.templates, history: DB.history, trash: DB.trash,
+    exportedAt: new Date().toISOString(),
+    version: 3,
+  };
+  downloadJSON(data, 'arm-msk37-backup.json');
+}
+function downloadJSON(data, filename){
+  const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+}
+
+/* ---------- Category delete ---------- */
+function deleteCategoryConfirm(id){
+  const c = DB.categories.filter(x=>x.id===id)[0];
+  if(!c) return;
+  const brs = DB.brackets.filter(b=>b.categoryId===id);
+  const matchCount = brs.reduce((s,b)=>s+b.matchIds.length, 0);
+  const msg = 'Удалить категорию «' + c.name + '»?\n\n' +
+    'Сеток: ' + brs.length + '\nПоединков: ' + matchCount + '\n\n' +
+    'Отменить нельзя (но можно сделать UNDO).';
+  if(!confirm(msg)) return;
+  DB.pushUndo();
+  const brIds = brs.map(b=>b.id);
+  DB.matches = DB.matches.filter(m => brIds.indexOf(m.bracketId) < 0);
+  DB.brackets = DB.brackets.filter(b => b.categoryId !== id);
+  DB.categories = DB.categories.filter(x => x.id !== id);
+  DB.log('', 'Удалена категория', c.name);
+  DB.save();
+  renderApp();
+}
+
+/* ---------- Global undo/redo ---------- */
+function globalUndo(){
+  if(DB.undo()){ bulkSelected = []; renderApp(); }
+}
+function globalRedo(){
+  if(DB.redo()){ bulkSelected = []; renderApp(); }
+}
+
+/* ============================================================
+   EDITOR
+   ============================================================ */
+let editorState = null;
+
+function renderEditorPage(bid){
+  const bracket = DB.brackets.filter(b=>b.id===bid)[0];
+  if(!bracket) return `<div class="page"><div class="empty">Сетка не найдена</div></div>`;
+  const tournament = DB.tournaments.filter(t=>t.id===bracket.tournamentId)[0];
+  const matches = DB.matches.filter(m=>m.bracketId===bid);
+  const xs = matches.map(m=>m.x); const ys = matches.map(m=>m.y);
+  const minX = xs.length?Math.min.apply(null,xs):0;
+  const minY = ys.length?Math.min.apply(null,ys):0;
+
+  editorState = {
+    bracketId: bid, selectedId: null,
+    view: {x:60,y:40,k:1},
+    dragging: null, panning: null, hoverSlot: null, showMiniMap: true,
+    minX: minX, minY: minY,
+    maxX: Math.max.apply(null, xs.concat([400])),
+    maxY: Math.max.apply(null, ys.concat([300])),
+  };
+
+  return `
+  <div class="editor">
+    <div class="editor-top">
+      <button class="back" onclick="go('/tournaments/${bracket.tournamentId}')">← НАЗАД</button>
+      <div class="sep"></div>
+      ${logoSVG(28)}
+      <div class="title-block">
+        <div class="t">${esc(tournament?tournament.name:'')}</div>
+        <div class="n">${esc(bracket.name)}</div>
+      </div>
+      <span class="tag red">${formatLabel(bracket.format)}</span>
+      <span class="tag gray">${matches.length} ПОЕДИНКОВ</span>
+      <div class="flex1"></div>
+      <div class="save-status" id="save-status"><span class="save-dot ok"></span><span>СОХРАНЕНО</span></div>
+      <div class="sep"></div>
+      <button class="btn ghost xs" onclick="editorUndo()" id="undo-btn">UNDO</button>
+      <button class="btn ghost xs" onclick="editorRedo()" id="redo-btn">REDO</button>
+      <button class="btn ghost xs" onclick="openHistory()">ИСТОРИЯ</button>
+      <button class="btn ghost xs" onclick="openTemplateModal()">В ШАБЛОН</button>
+      <button class="btn ghost xs" onclick="duplicateCurrentBracket()">ДУБЛИРОВАТЬ</button>
+      <button class="btn primary xs" onclick="openExportModal()">ЭКСПОРТ</button>
+    </div>
+
+    <div class="editor-body">
+      <div class="toolbar">
+        <button class="tool active" title="Выбор">◈</button>
+        <button class="tool" title="Переместить">✥</button>
+        <button class="tool" title="Добавить поединок" onclick="editorAddMatch()">+</button>
+        <div class="tool-sep"></div>
+        <button class="tool" title="Zoom In" onclick="zoomBy(1.15)">+</button>
+        <button class="tool" title="Zoom Out" onclick="zoomBy(1/1.15)">−</button>
+        <button class="tool" title="По центру" onclick="centerView()">◎</button>
+        <button class="tool" title="Подогнать" onclick="fitToScreen()">⤢</button>
+        <div class="tool-spacer"></div>
+        <button class="tool active" id="minimap-toggle" title="Мини-карта" onclick="toggleMiniMap()">▦</button>
+      </div>
+
+      <div class="canvas-wrap" id="canvas-wrap">
+        <svg id="canvas" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+              <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#161616" stroke-width="1"/>
+            </pattern>
+          </defs>
+          <rect width="100%" height="100%" fill="url(#grid)"/>
+          <g id="scene"></g>
+        </svg>
+        <div class="status-bar">
+          <span id="zoom-label">ZOOM: 100%</span>
+          <span id="pos-label">X: 0 Y: 0</span>
+          <div class="spacer"></div>
+          <span>ЛКМ — выбрать · ALT+ЛКМ / СКМ — панорама · CTRL+wheel — zoom</span>
+        </div>
+        <div class="minimap" id="minimap">
+          <svg id="minimap-svg" width="220" height="140"></svg>
+        </div>
+      </div>
+
+      <div class="props" id="props"></div>
+    </div>
+  </div>`;
+}
+
+function bindEditor(bid){
+  const svg = document.getElementById('canvas');
+  if(!svg) return;
+  updateUndoRedoButtons();
+  renderScene();
+  renderProperties();
+
+  svg.addEventListener('wheel', function(e){
+    if(!(e.ctrlKey||e.metaKey||e.shiftKey)) return;
+    e.preventDefault();
+    const factor = e.deltaY<0 ? 1.1 : 0.9;
+    zoomBy(factor);
+  }, {passive:false});
+
+  svg.addEventListener('pointerdown', function(e){
+    if(e.target.closest && e.target.closest('[data-match]')) return;
+    if(e.button===1 || (e.button===0 && e.altKey)){
+      editorState.panning = { startX:e.clientX, startY:e.clientY, vx:editorState.view.x, vy:editorState.view.y };
+      try{ svg.setPointerCapture(e.pointerId); }catch(_){}
+      const wrap = document.getElementById('canvas-wrap');
+      if(wrap) wrap.classList.add('panning');
+    }
+  });
+  svg.addEventListener('pointermove', function(e){
+    const st = editorState; if(!st) return;
+    if(st.panning){
+      st.view.x = st.panning.vx + (e.clientX - st.panning.startX);
+      st.view.y = st.panning.vy + (e.clientY - st.panning.startY);
+      renderScene(); return;
+    }
+    if(st.dragging){
+      const p = clientToSvg(e.clientX, e.clientY);
+      const m = DB.matches.filter(x=>x.id===st.dragging.id)[0];
+      if(m){ m.x = p.x - st.dragging.dx; m.y = p.y - st.dragging.dy; renderScene(); }
+    }
+  });
+  svg.addEventListener('pointerup', function(e){
+    const st = editorState; if(!st) return;
+    if(st.panning){
+      st.panning = null;
+      const wrap = document.getElementById('canvas-wrap');
+      if(wrap) wrap.classList.remove('panning');
+    }
+    if(st.dragging){
+      const m = DB.matches.filter(x=>x.id===st.dragging.id)[0];
+      if(m) { DB.save(); updateSaveStatus(); }
+      st.dragging = null;
+    }
+    try{ svg.releasePointerCapture(e.pointerId); }catch(_){}
+  });
+  svg.addEventListener('pointerleave', function(){
+    if(editorState) editorState.panning = null;
+    const wrap = document.getElementById('canvas-wrap');
+    if(wrap) wrap.classList.remove('panning');
+  });
+  setTimeout(fitToScreen, 80);
+}
+
+function clientToSvg(clientX, clientY){
+  const svg = document.getElementById('canvas');
+  if(!svg) return {x:0,y:0};
+  const pt = svg.createSVGPoint(); pt.x = clientX; pt.y = clientY;
+  const ctm = svg.getScreenCTM();
+  if(!ctm) return {x:0,y:0};
+  const p = pt.matrixTransform(ctm.inverse());
+  return { x: p.x, y: p.y };
+}
+
+function renderScene(){
+  const st = editorState; if(!st) return;
+  const scene = document.getElementById('scene'); if(!scene) return;
+  const matches = DB.matches.filter(m=>m.bracketId===st.bracketId);
+  if(matches.length){
+    const xs = matches.map(m=>m.x); const ys = matches.map(m=>m.y);
+    st.minX = Math.min.apply(null, xs); st.minY = Math.min.apply(null, ys);
+    st.maxX = Math.max.apply(null, xs.map(x=>x+220));
+    st.maxY = Math.max.apply(null, ys.map(y=>y+80));
+  }
+  const map = new Map(matches.map(m=>[m.id, m]));
+  let connectorsHTML = '';
+  for(const m of matches){
+    if(!m.nextMatchId) continue;
+    const nx = map.get(m.nextMatchId); if(!nx) continue;
+    const x1 = m.x+220, y1 = m.y+40;
+    const x2 = nx.x,   y2 = nx.y+40;
+    const midX = (x1+x2)/2;
+    const stroke = m.winnerId ? '#3a3a3a' : '#2a2a2a';
+    const dash = m.winnerId ? '' : 'stroke-dasharray="4 4"';
+    connectorsHTML += `<path d="M ${x1} ${y1} H ${midX} V ${y2} H ${x2}" fill="none" stroke="${stroke}" stroke-width="1.5" ${dash}/>`;
+  }
+  let matchesHTML = '';
+  for(const m of matches) matchesHTML += matchCardSVG(m, DB.athletes, st.selectedId===m.id);
+  scene.innerHTML = connectorsHTML + matchesHTML;
+  scene.setAttribute('transform', 'translate(' + st.view.x + ' ' + st.view.y + ') scale(' + st.view.k + ')');
+
+  $$('[data-match]', scene).forEach(function(g){
+    const mid = g.getAttribute('data-match');
+    g.addEventListener('pointerdown', function(ev){
+      if(ev.button!==0 || ev.altKey) return;
+      ev.stopPropagation();
+      selectMatch(mid);
+      const p = clientToSvg(ev.clientX, ev.clientY);
+      const m = DB.matches.filter(x=>x.id===mid)[0];
+      if(m){
+        editorState.dragging = { id:mid, dx:p.x-m.x, dy:p.y-m.y };
+        g.style.cursor = 'grabbing';
+      }
+    });
+    g.addEventListener('contextmenu', function(ev){
+      ev.preventDefault();
+      selectMatch(mid);
+      openContextMenu(ev.clientX, ev.clientY, mid);
+    });
+    $$('[data-slot]', g).forEach(function(slotEl){
+      slotEl.addEventListener('dragover', function(ev){
+        ev.preventDefault();
+        editorState.hoverSlot = { matchId: mid, slot: slotEl.getAttribute('data-slot') };
+        renderScene();
+      });
+      slotEl.addEventListener('dragleave', function(){
+        const s = editorState.hoverSlot;
+        if(s && s.matchId===mid && s.slot===slotEl.getAttribute('data-slot')){
+          editorState.hoverSlot = null; renderScene();
+        }
+      });
+      slotEl.addEventListener('drop', function(ev){
+        ev.preventDefault();
+        const athleteId = ev.dataTransfer.getData('athlete-id');
+        if(athleteId) moveAthleteToSlot(mid, slotEl.getAttribute('data-slot'), athleteId);
+        editorState.hoverSlot = null;
+        renderScene();
+      });
+    });
+  });
+
+  const zoomLabel = document.getElementById('zoom-label');
+  if(zoomLabel) zoomLabel.textContent = 'ZOOM: ' + Math.round(st.view.k*100) + '%';
+  const posLabel = document.getElementById('pos-label');
+  if(posLabel) posLabel.textContent = 'X: ' + Math.round(-st.view.x) + ' Y: ' + Math.round(-st.view.y);
+  renderMiniMap();
+}
+
+function matchCardSVG(m, athletes, selected){
+  const W=220, H=80;
+  const aA = athletes.filter(a=>a.id===m.athleteAId)[0];
+  const aB = athletes.filter(a=>a.id===m.athleteBId)[0];
+  const winnerA = m.winnerId && m.winnerId===m.athleteAId;
+  const winnerB = m.winnerId && m.winnerId===m.athleteBId;
+  const cancelled = m.status==='cancelled';
+  const hover = editorState.hoverSlot;
+  const hA = hover && hover.matchId===m.id && hover.slot==='A';
+  const hB = hover && hover.matchId===m.id && hover.slot==='B';
+  const nameA = aA ? esc(aA.lastName) + ' ' + esc(aA.firstName.charAt(0)) + '.' : '— — —';
+  const nameB = aB ? esc(aB.lastName) + ' ' + esc(aB.firstName.charAt(0)) + '.' : '— — —';
+
+  return `<g data-match="${m.id}" transform="translate(${m.x} ${m.y})" style="cursor:grab">
+    <rect x="2" y="2" width="${W}" height="${H}" fill="#000" opacity="0.4"/>
+    <rect width="${W}" height="${H}" fill="${cancelled?'#0e0e0e':'#111'}" stroke="${selected?'#c1121f':'#2a2a2a'}" stroke-width="${selected?2:1.5}"/>
+    <rect width="${W}" height="26" fill="#161616" stroke="#2a2a2a" stroke-width="1"/>
+    <text x="8" y="17" fill="#5a5a5a" font-family="Oswald, sans-serif" font-size="10" font-weight="700" letter-spacing="2">#${String(m.position+1).padStart(3,'0')}</text>
+    <text x="${W-8}" y="17" text-anchor="end" fill="${selected?'#e63946':'#9a9a9a'}" font-family="Oswald, sans-serif" font-size="10" font-weight="700" letter-spacing="2">${esc((m.label||'').toUpperCase())}</text>
+    <g data-slot="A">
+      <rect x="0" y="26" width="${W}" height="${H/2-13}" fill="${hA?'rgba(193,18,31,0.15)':'transparent'}" stroke="${hA?'#c1121f':'transparent'}" stroke-width="1"/>
+      ${winnerA?'<rect x="0" y="30" width="3" height="14" fill="#c1121f"/>':''}
+      <text x="10" y="44" fill="${winnerA?'#fff':(aA?'#c7c7c7':'#5a5a5a')}" font-family="Oswald, sans-serif" font-size="12" font-weight="600">${nameA}</text>
+      <text x="${W-10}" y="44" text-anchor="end" fill="#e8e8e8" font-family="JetBrains Mono, monospace" font-size="14" font-weight="700">${m.scoreA}</text>
+    </g>
+    <line x1="0" y1="${H/2+0.5}" x2="${W}" y2="${H/2+0.5}" stroke="#2a2a2a"/>
+    <g data-slot="B">
+      <rect x="0" y="${H/2+1}" width="${W}" height="${H/2-14}" fill="${hB?'rgba(193,18,31,0.15)':'transparent'}" stroke="${hB?'#c1121f':'transparent'}" stroke-width="1"/>
+      ${winnerB?'<rect x="0" y="'+(H/2+5)+'" width="3" height="14" fill="#c1121f"/>':''}
+      <text x="10" y="${H/2+18}" fill="${winnerB?'#fff':(aB?'#c7c7c7':'#5a5a5a')}" font-family="Oswald, sans-serif" font-size="12" font-weight="600">${nameB}</text>
+      <text x="${W-10}" y="${H/2+18}" text-anchor="end" fill="#e8e8e8" font-family="JetBrains Mono, monospace" font-size="14" font-weight="700">${m.scoreB}</text>
+    </g>
+    ${cancelled?'<text x="'+(W/2)+'" y="'+(H/2+5)+'" text-anchor="middle" fill="#c1121f" font-family="Oswald, sans-serif" font-size="14" font-weight="700" letter-spacing="4">ОТМЕНЁН</text>':''}
+  </g>`;
+}
+
+function renderMiniMap(){
+  const st = editorState; if(!st) return;
+  const svg = document.getElementById('minimap-svg'); if(!svg) return;
+  const parent = svg.parentElement;
+  if(!st.showMiniMap){ if(parent) parent.style.display = 'none'; return; }
+  if(parent) parent.style.display = 'block';
+  const W=220,H=140;
+  const bw = (st.maxX - st.minX) || 1;
+  const bh = (st.maxY - st.minY) || 1;
+  const scale = Math.min((W-20)/bw, (H-20)/bh);
+  const offX = (W - bw*scale)/2;
+  const offY = (H - bh*scale)/2;
+  const wrap = document.getElementById('canvas-wrap');
+  const vw = wrap ? wrap.clientWidth : 800;
+  const vh = wrap ? wrap.clientHeight : 600;
+  const vX0 = -st.view.x/st.view.k;
+  const vY0 = -st.view.y/st.view.k;
+  const vW = vw/st.view.k;
+  const vH = vh/st.view.k;
+  const rectX = offX + (vX0 - st.minX)*scale;
+  const rectY = offY + (vY0 - st.minY)*scale;
+  const matches = DB.matches.filter(m=>m.bracketId===st.bracketId);
+  let inner = '';
+  for(const m of matches){
+    inner += '<rect x="'+(offX + (m.x-st.minX)*scale)+'" y="'+(offY + (m.y-st.minY)*scale)+'" width="'+Math.max(2,220*scale)+'" height="'+Math.max(2,80*scale)+'" fill="'+(m.status==='completed'?'#c1121f':'#3a3a3a')+'"/>';
+  }
+  inner += '<rect x="'+rectX+'" y="'+rectY+'" width="'+(vW*scale)+'" height="'+(vH*scale)+'" fill="rgba(255,255,255,0.08)" stroke="#fff" stroke-width="1"/>';
+  svg.innerHTML = '<rect width="100%" height="100%" fill="#0a0a0a"/>' + inner;
+}
+
+function selectMatch(mid){
+  if(!editorState) return;
+  editorState.selectedId = mid;
+  renderScene(); renderProperties();
+}
+function zoomBy(f){
+  if(!editorState) return;
+  editorState.view.k = Math.min(3, Math.max(0.15, editorState.view.k * f));
+  renderScene();
+}
+function centerView(){
+  if(!editorState) return;
+  const wrap = document.getElementById('canvas-wrap'); if(!wrap) return;
+  editorState.view.x = wrap.clientWidth/2 - 400*editorState.view.k;
+  editorState.view.y = 40;
+  renderScene();
+}
+function fitToScreen(){
+  const st = editorState; if(!st) return;
+  const matches = DB.matches.filter(m=>m.bracketId===st.bracketId);
+  if(!matches.length) return;
+  const xs = matches.map(m=>m.x), ys = matches.map(m=>m.y);
+  const minX = Math.min.apply(null, xs)-40, minY = Math.min.apply(null, ys)-40;
+  const maxX = Math.max.apply(null, xs.map(x=>x+220))+40;
+  const maxY = Math.max.apply(null, ys.map(y=>y+80))+40;
+  const w = maxX-minX, h = maxY-minY;
+  const wrap = document.getElementById('canvas-wrap'); if(!wrap) return;
+  const k = Math.min(wrap.clientWidth/w, (wrap.clientHeight-30)/h, 1.4);
+  st.view.k = k;
+  st.view.x = (wrap.clientWidth - w*k)/2 - minX*k;
+  st.view.y = (wrap.clientHeight - 30 - h*k)/2 - minY*k;
+  renderScene();
+}
+function toggleMiniMap(){
+  if(!editorState) return;
+  editorState.showMiniMap = !editorState.showMiniMap;
+  const b = document.getElementById('minimap-toggle');
+  if(b) b.classList.toggle('active', editorState.showMiniMap);
+  renderMiniMap();
+}
+
+function moveAthleteToSlot(matchId, slot, athleteId){
+  const m = DB.matches.filter(x=>x.id===matchId)[0]; if(!m) return;
+  DB.pushUndo();
+  if(slot==='A') m.athleteAId = athleteId; else m.athleteBId = athleteId;
+  const all = recomputeBracket(DB.matches);
+  DB.matches.length = 0; DB.matches.push.apply(DB.matches, all);
+  DB.log(m.bracketId, 'Перемещён спортсмен', 'Позиция ' + slot + ' → матч #' + (m.position+1));
+  DB.save();
+  renderScene(); renderProperties();
+  updateSaveStatus(); updateUndoRedoButtons();
+}
+
+function editorUndo(){ DB.undo(); renderScene(); renderProperties(); updateUndoRedoButtons(); updateSaveStatus(); }
+function editorRedo(){ DB.redo(); renderScene(); renderProperties(); updateUndoRedoButtons(); updateSaveStatus(); }
+function updateUndoRedoButtons(){
+  const u = document.getElementById('undo-btn'), r = document.getElementById('redo-btn');
+  if(u) u.disabled = !DB.undoStack.length;
+  if(r) r.disabled = !DB.redoStack.length;
+}
+let saveStatusTimer = null;
+function updateSaveStatus(){
+  const el = document.getElementById('save-status'); if(!el) return;
+  el.innerHTML = '<span class="save-dot busy"></span><span>СОХРАНЕНИЕ...</span>';
+  clearTimeout(saveStatusTimer);
+  saveStatusTimer = setTimeout(function(){
+    el.innerHTML = '<span class="save-dot ok"></span><span>СОХРАНЕНО</span>';
+  }, 300);
+}
+
+function editorAddMatch(){
+  const bid = editorState.bracketId;
+  DB.pushUndo();
+  const bracket = DB.brackets.filter(b=>b.id===bid)[0];
+  const bMatches = DB.matches.filter(m=>m.bracketId===bid);
+  const maxRound = bMatches.length ? Math.max.apply(null, bMatches.map(m=>m.roundIndex)) : 0;
+  const inRound = bMatches.filter(m=>m.roundIndex===maxRound).length;
+  const m = {
+    id:uid(), bracketId:bid, roundIndex:maxRound, position:inRound,
+    athleteAId:null, athleteBId:null, scoreA:0, scoreB:0,
+    winnerId:null, loserId:null, status:'empty',
+    nextMatchId:null, loserNextMatchId:null,
+    label: (bracket && bracket.roundLabels[maxRound]) || ('РАУНД ' + (maxRound+1)),
+    side:'winners', x: 60 + maxRound*260, y: 60 + inRound*90,
+  };
+  DB.matches.push(m);
+  if(bracket){ bracket.matchIds.push(m.id); bracket.updatedAt = Date.now(); }
+  DB.log(bid, 'Добавлен поединок', '#' + (m.position+1));
+  DB.save();
+  renderScene(); updateUndoRedoButtons(); updateSaveStatus();
+}
+function deleteMatchConfirm(mid){
+  const m = DB.matches.filter(x=>x.id===mid)[0]; if(!m) return;
+  if(!confirm('Удалить поединок #' + (m.position+1) + '?')) return;
+  DB.pushUndo();
+  DB.matches = DB.matches.filter(x=>x.id!==mid).map(function(x){
+    if(x.nextMatchId===mid){ const c = Object.assign({}, x); c.nextMatchId = null; return c; }
+    return x;
+  });
+  const bracket = DB.brackets.filter(b=>b.id===m.bracketId)[0];
+  if(bracket) bracket.matchIds = bracket.matchIds.filter(x=>x!==mid);
+  DB.log(m.bracketId, 'Удалён поединок', '#' + (m.position+1));
+  DB.save();
+  if(editorState) editorState.selectedId = null;
+  renderScene(); renderProperties(); updateUndoRedoButtons(); updateSaveStatus();
+}
+
+function openContextMenu(x, y, mid){
+  closeContextMenu();
+  const menu = document.createElement('div');
+  menu.id = 'ctx-menu';
+  menu.style.cssText = 'position:fixed;left:'+x+'px;top:'+y+'px;z-index:200;background:var(--ink2);' +
+    'border:1px solid var(--steel);min-width:200px;padding:4px 0;box-shadow:0 12px 30px rgba(0,0,0,.7)';
+  const items = [
+    ['РЕДАКТИРОВАТЬ', function(){ renderProperties(); }],
+    ['ДОБАВИТЬ ПОЕДИНОК', editorAddMatch],
+    ['ОТМЕНИТЬ ПОЕДИНОК', function(){
+      if(confirm('Отменить поединок?')){
+        DB.pushUndo();
+        const m = DB.matches.filter(x=>x.id===mid)[0];
+        if(m){ m.status='cancelled'; m.winnerId=null; }
+        DB.save(); renderScene(); updateUndoRedoButtons();
+      }
+    }],
+    ['УДАЛИТЬ', function(){ deleteMatchConfirm(mid); }],
+  ];
+  items.forEach(function(it){
+    const btn = document.createElement('button');
+    btn.textContent = it[0];
+    btn.style.cssText = 'display:block;width:100%;text-align:left;padding:8px 14px;background:none;border:none;' +
+      'color:var(--bone);font-size:11px;letter-spacing:.15em;font-weight:700;text-transform:uppercase;cursor:pointer';
+    btn.onmouseenter = function(){ btn.style.background = 'var(--ink3)'; };
+    btn.onmouseleave = function(){ btn.style.background = 'none'; };
+    btn.onclick = function(){ it[1](); closeContextMenu(); };
+    menu.appendChild(btn);
+  });
+  document.body.appendChild(menu);
+  setTimeout(function(){ document.addEventListener('click', closeContextMenu, {once:true}); }, 50);
+}
+function closeContextMenu(){ const e = document.getElementById('ctx-menu'); if(e) e.remove(); }
+
+function renderProperties(){
+  const props = document.getElementById('props');
+  if(!props || !editorState) return;
+  const mid = editorState.selectedId;
+  if(!mid){
+    props.innerHTML = '<div class="props-head"><h3>Свойства</h3></div>' +
+      '<div class="props-body"><div class="props-empty">Ничего не выбрано. Кликните по поединку на сетке.</div></div>';
+    return;
+  }
+  const m = DB.matches.filter(x=>x.id===mid)[0]; if(!m) return;
+  const athletes = DB.athletes;
+  const aA = athletes.filter(a=>a.id===m.athleteAId)[0];
+  const aB = athletes.filter(a=>a.id===m.athleteBId)[0];
+  const athOptions = function(sel){
+    return '<option value="">— пусто —</option>' + athletes.map(function(a){
+      return '<option value="'+a.id+'" '+(a.id===sel?'selected':'')+'>'+esc(a.lastName)+' '+esc(a.firstName)+' ('+esc(a.club)+')</option>';
+    }).join('');
+  };
+  props.innerHTML =
+    '<div class="props-head"><h3>Свойства</h3></div>' +
+    '<div class="props-body">' +
+      '<div class="match-badge">' +
+        '<div class="num">#'+String(m.position+1).padStart(3,'0')+'</div>' +
+        '<div class="meta">'+esc(m.label||'')+' · '+m.side.toUpperCase()+'</div>' +
+      '</div>' +
+      '<div style="margin-bottom:12px"><label class="label">Спортсмен A</label><select class="input" id="prop-athA">'+athOptions(m.athleteAId)+'</select></div>' +
+      '<div style="margin-bottom:12px"><label class="label">Спортсмен B</label><select class="input" id="prop-athB">'+athOptions(m.athleteBId)+'</select></div>' +
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">' +
+        '<div><label class="label">Счёт A</label><input class="input" type="number" id="prop-scoreA" value="'+m.scoreA+'"></div>' +
+        '<div><label class="label">Счёт B</label><input class="input" type="number" id="prop-scoreB" value="'+m.scoreB+'"></div>' +
+      '</div>' +
+      '<div style="margin:12px 0"><label class="label">Победитель</label><select class="input" id="prop-winner">' +
+        '<option value="">— не определён —</option>' +
+        (aA?'<option value="'+aA.id+'" '+(m.winnerId===aA.id?'selected':'')+'>'+esc(aA.lastName)+' '+esc(aA.firstName)+'</option>':'') +
+        (aB?'<option value="'+aB.id+'" '+(m.winnerId===aB.id?'selected':'')+'>'+esc(aB.lastName)+' '+esc(aB.firstName)+'</option>':'') +
+      '</select></div>' +
+      '<div style="margin-bottom:12px"><label class="label">Статус</label><select class="input" id="prop-status">' +
+        ['empty:ПУСТОЙ','scheduled:ЗАПЛАНИРОВАН','filled:ЗАПОЛНЕН','completed:ЗАВЕРШЁН','cancelled:ОТМЕНЁН'].map(function(s){
+          const parts = s.split(':');
+          return '<option value="'+parts[0]+'" '+(m.status===parts[0]?'selected':'')+'>'+parts[1]+'</option>';
+        }).join('') +
+      '</select></div>' +
+      '<div style="margin-bottom:12px"><label class="label">Метка раунда</label><input class="input" id="prop-label" value="'+esc(m.label||'')+'"></div>' +
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">' +
+        '<div><label class="label">X</label><input class="input" type="number" id="prop-x" value="'+Math.round(m.x)+'"></div>' +
+        '<div><label class="label">Y</label><input class="input" type="number" id="prop-y" value="'+Math.round(m.y)+'"></div>' +
+      '</div>' +
+      '<div class="divider"></div>' +
+      '<div style="display:flex;flex-direction:column;gap:6px">' +
+        '<button class="btn ghost" id="prop-cancel">ОТМЕНИТЬ ПОЕДИНОК</button>' +
+        '<button class="btn danger" id="prop-delete">УДАЛИТЬ</button>' +
+      '</div>' +
+    '</div>';
+
+  const update = function(patch, history){
+    DB.pushUndo();
+    Object.assign(m, patch);
+    const all = recomputeBracket(DB.matches);
+    DB.matches.length = 0; DB.matches.push.apply(DB.matches, all);
+    if(history) DB.log(m.bracketId, history);
+    DB.save();
+    renderScene(); updateUndoRedoButtons(); updateSaveStatus();
+  };
+
+  const athA = $('#prop-athA', props);
+  if(athA) athA.addEventListener('change', function(e){ update({athleteAId: e.target.value || null}, 'Изменён спортсмен A'); renderProperties(); });
+  const athB = $('#prop-athB', props);
+  if(athB) athB.addEventListener('change', function(e){ update({athleteBId: e.target.value || null}, 'Изменён спортсмен B'); renderProperties(); });
+  const sA = $('#prop-scoreA', props);
+  if(sA) sA.addEventListener('change', function(e){ update({scoreA:+e.target.value}, 'Изменён счёт'); });
+  const sB = $('#prop-scoreB', props);
+  if(sB) sB.addEventListener('change', function(e){ update({scoreB:+e.target.value}, 'Изменён счёт'); });
+  const w = $('#prop-winner', props);
+  if(w) w.addEventListener('change', function(e){
+    const wid = e.target.value || null;
+    const loser = wid===m.athleteAId ? m.athleteBId : m.athleteAId;
+    if(!confirm('Изменение результата повлияет на связанные поединки. Продолжить?')){ renderProperties(); return; }
+    update({winnerId: wid, loserId: loser, status: wid?'completed':m.status}, 'Изменён победитель');
+    renderProperties();
+  });
+  const st = $('#prop-status', props);
+  if(st) st.addEventListener('change', function(e){ update({status:e.target.value}); });
+  const lb = $('#prop-label', props);
+  if(lb) lb.addEventListener('change', function(e){ update({label:e.target.value}); });
+  const px = $('#prop-x', props);
+  if(px) px.addEventListener('change', function(e){ update({x:+e.target.value}); });
+  const py = $('#prop-y', props);
+  if(py) py.addEventListener('change', function(e){ update({y:+e.target.value}); });
+  const pc = $('#prop-cancel', props);
+  if(pc) pc.addEventListener('click', function(){
+    if(confirm('Отменить поединок?')) update({status:'cancelled', winnerId:null}, 'Отменён поединок');
+    renderProperties();
+  });
+  const pd = $('#prop-delete', props);
+  if(pd) pd.addEventListener('click', function(){ deleteMatchConfirm(mid); });
+}
+
+/* ============================================================
+   MODALS / ACTIONS
+   ============================================================ */
+function modal(html, opts){
+  opts = opts || {};
+  const wrap = document.createElement('div');
+  wrap.className = 'modal-bg';
+  wrap.innerHTML = '<div class="modal '+(opts.wide?'wide':'')+'">'+html+'</div>';
+  wrap.addEventListener('click', function(e){ if(e.target===wrap && !opts.sticky) wrap.remove(); });
+  document.body.appendChild(wrap);
+  return wrap;
+}
+function closeModal(){
+  const all = document.querySelectorAll('.modal-bg');
+  if(all.length) all[all.length-1].remove();
+}
+
+/* ---------- Tournament create/edit ---------- */
+function openCreateTournament(){
+  const today = new Date().toISOString().slice(0,10);
+  const wrap = modal(
+    '<div class="modal-head"><h3>НОВЫЙ ТУРНИР</h3><button class="x" onclick="closeModal()">×</button></div>' +
+    '<div class="modal-body">' +
+      '<div style="margin-bottom:12px"><label class="label">Название</label><input class="input" id="tn" placeholder="КУБОК SETKA PRO · ЛЕТО 2025"></div>' +
+      '<div style="margin-bottom:12px"><label class="label">Описание</label><textarea class="input" id="td" rows="3"></textarea></div>' +
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">' +
+        '<div><label class="label">Дата</label><input class="input" type="date" id="tdate" value="'+today+'"></div>' +
+        '<div><label class="label">Статус</label><select class="input" id="tst">' +
+          '<option value="draft">ЧЕРНОВИК</option><option value="prep">ПОДГОТОВКА</option>' +
+          '<option value="finished">ЗАВЕРШЁН</option><option value="archive">АРХИВ</option>' +
+        '</select></div>' +
+      '</div>' +
+      '<div style="margin:12px 0"><label class="label">Место</label><input class="input" id="tp" placeholder="Москва, СК «Железо»"></div>' +
+      '<div style="margin-bottom:12px"><label class="label">Организатор</label><input class="input" id="to" value="SETKA PRO"></div>' +
+      '<div class="modal-foot">' +
+        '<button class="btn ghost" onclick="closeModal()">ОТМЕНА</button>' +
+        '<button class="btn primary" id="create-t-btn">СОЗДАТЬ</button>' +
+      '</div>' +
+    '</div>'
+  );
+  $('#create-t-btn', wrap).onclick = function(){
+    const name = $('#tn', wrap).value.trim(); if(!name) return;
+    DB.pushUndo();
+    const t = {
+      id:uid(), name:name, description: $('#td', wrap).value,
+      date: $('#tdate', wrap).value, place: $('#tp', wrap).value,
+      organizer: $('#to', wrap).value, status: $('#tst', wrap).value,
+      createdAt: Date.now(), updatedAt: Date.now(),
+    };
+    DB.tournaments.push(t); DB.save();
+    closeModal();
+    go('/tournaments/' + t.id);
+  };
+}
+
+function openEditTournament(id){
+  const t = DB.tournaments.filter(x=>x.id===id)[0]; if(!t) return;
+  const wrap = modal(
+    '<div class="modal-head"><h3>РЕДАКТИРОВАТЬ ТУРНИР</h3><button class="x" onclick="closeModal()">×</button></div>' +
+    '<div class="modal-body">' +
+      '<div style="margin-bottom:12px"><label class="label">Название</label><input class="input" id="en" value="'+esc(t.name)+'"></div>' +
+      '<div style="margin-bottom:12px"><label class="label">Описание</label><textarea class="input" id="ed" rows="3">'+esc(t.description||'')+'</textarea></div>' +
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">' +
+        '<div><label class="label">Дата</label><input class="input" type="date" id="edt" value="'+String(t.date||'').slice(0,10)+'"></div>' +
+        '<div><label class="label">Статус</label><select class="input" id="est">' +
+          ['draft:ЧЕРНОВИК','prep:ПОДГОТОВКА','finished:ЗАВЕРШЁН','archive:АРХИВ'].map(function(s){
+            const p = s.split(':');
+            return '<option value="'+p[0]+'" '+(t.status===p[0]?'selected':'')+'>'+p[1]+'</option>';
+          }).join('') +
+        '</select></div>' +
+      '</div>' +
+      '<div style="margin:12px 0"><label class="label">Место</label><input class="input" id="ep" value="'+esc(t.place||'')+'"></div>' +
+      '<div style="margin-bottom:12px"><label class="label">Организатор</label><input class="input" id="eo" value="'+esc(t.organizer||'')+'"></div>' +
+      '<div class="modal-foot">' +
+        '<button class="btn ghost" onclick="closeModal()">ЗАКРЫТЬ</button>' +
+        '<button class="btn primary" id="save-t-btn">СОХРАНИТЬ</button>' +
+      '</div>' +
+    '</div>'
+  );
+  $('#save-t-btn', wrap).onclick = function(){
+    t.name = $('#en', wrap).value;
+    t.description = $('#ed', wrap).value;
+    t.date = $('#edt', wrap).value;
+    t.place = $('#ep', wrap).value;
+    t.organizer = $('#eo', wrap).value;
+    t.status = $('#est', wrap).value;
+    t.updatedAt = Date.now();
+    DB.save(); closeModal(); renderApp();
+  };
+}
+
+/* ---------- Category create ---------- */
+function openCreateCategory(tid){
+  const wrap = modal(
+    '<div class="modal-head"><h3>НОВАЯ КАТЕГОРИЯ</h3><button class="x" onclick="closeModal()">×</button></div>' +
+    '<div class="modal-body">' +
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">' +
+        '<div><label class="label">Пол</label><select class="input" id="cg">' +
+          '<option value="male">МУЖЧИНЫ</option><option value="female">ЖЕНЩИНЫ</option><option value="any">МИКС</option>' +
+        '</select></div>' +
+        '<div><label class="label">Рука</label><select class="input" id="ch">' +
+          '<option value="right">ПРАВАЯ</option><option value="left">ЛЕВАЯ</option>' +
+        '</select></div>' +
+        '<div><label class="label">Вес от</label><input class="input" type="number" id="cwmin" value="0"></div>' +
+        '<div><label class="label">Вес до</label><input class="input" type="number" id="cwmax" value="70"></div>' +
+      '</div>' +
+      '<div style="margin:12px 0"><label class="label">Формат сетки</label><select class="input" id="cf">' +
+        '<option value="single-elim">SINGLE ELIMINATION</option>' +
+        '<option value="double-elim">DOUBLE ELIMINATION</option>' +
+        '<option value="round-robin">ROUND ROBIN</option>' +
+        '<option value="groups-playoff">GROUPS + PLAYOFF</option>' +
+      '</select></div>' +
+      '<div style="margin-bottom:12px"><label class="label">Название (авто)</label><input class="input" id="cn"></div>' +
+      '<div class="modal-foot">' +
+        '<button class="btn ghost" onclick="closeModal()">ОТМЕНА</button>' +
+        '<button class="btn primary" id="create-cat-btn">СОЗДАТЬ</button>' +
+      '</div>' +
+    '</div>'
+  );
+  const g = $('#cg', wrap), h = $('#ch', wrap), cn = $('#cn', wrap), wmax = $('#cwmax', wrap);
+  function updateName(){
+    const gender = g.value==='male'?'МУЖЧИНЫ':g.value==='female'?'ЖЕНЩИНЫ':'МИКС';
+    const hand = h.value==='right'?'ПРАВАЯ РУКА':'ЛЕВАЯ РУКА';
+    cn.value = gender + ' — ДО ' + wmax.value + ' КГ — ' + hand;
+  }
+  [g,h,wmax].forEach(function(el){ el.addEventListener('input', updateName); });
+  updateName();
+  $('#create-cat-btn', wrap).onclick = function(){
+    DB.pushUndo();
+    const cat = {
+      id:uid(), tournamentId:tid, name: cn.value,
+      gender: g.value, hand: h.value,
+      weightMin: +$('#cwmin', wrap).value, weightMax: +wmax.value,
+      format: $('#cf', wrap).value, athleteIds:[],
+    };
+    DB.categories.push(cat); DB.save();
+    closeModal(); renderApp();
+  };
+}
+
+/* ---------- Bracket wizard ---------- */
+function openBracketWizard(catId){
+  const cat = DB.categories.filter(c=>c.id===catId)[0]; if(!cat) return;
+  const availableIds = cat.athleteIds.length ? cat.athleteIds : DB.athletes.map(a=>a.id);
+  const state = {
+    step:1, format: cat.format,
+    size: Math.min(8, availableIds.length||8),
+    selected: availableIds.slice(0, Math.min(8, availableIds.length)),
+    seeding: 'random',
+  };
+  const wrap = modal('<div id="wizard-root"></div>', {wide:true, sticky:true});
+
+  function renderWizard(){
+    const inner = $('#wizard-root', wrap); if(!inner) return;
+    const step = state.step;
+    let content = '';
+    if(step===1){
+      const opts = [
+        ['single-elim','SINGLE ELIMINATION','Олимпийская система'],
+        ['double-elim','DOUBLE ELIMINATION','Winners + Losers + Grand Final'],
+        ['round-robin','ROUND ROBIN','Каждый с каждым'],
+        ['groups-playoff','GROUPS + PLAYOFF','Группы + плей-офф'],
+      ];
+      content = '<div style="font-size:13px;letter-spacing:.2em;text-transform:uppercase;margin-bottom:16px">Выберите формат сетки</div>' +
+        '<div class="format-grid">' + opts.map(function(o){
+          return '<button class="format-btn '+(state.format===o[0]?'on':'')+'" data-fmt="'+o[0]+'">' +
+            '<div class="t">'+o[1]+'</div><div class="d">'+o[2]+'</div></button>';
+        }).join('') + '</div>';
+    } else if(step===2){
+      content = '<div style="font-size:13px;letter-spacing:.2em;text-transform:uppercase;margin-bottom:16px">Количество участников</div>' +
+        '<div style="display:flex;align-items:center;gap:16px">' +
+          '<input class="input" type="number" id="w-size" value="'+state.size+'" style="max-width:120px" min="2" max="128">' +
+          '<div style="font-size:12px;color:var(--bone-faint)">Доступно: '+availableIds.length+'</div>' +
+        '</div>';
+    } else if(step===3){
+      content = '<div style="font-size:13px;letter-spacing:.2em;text-transform:uppercase;margin-bottom:16px">Выбор участников ('+state.selected.length+' из '+state.size+')</div>' +
+        '<div class="ath-list" id="w-ath-list">' + availableIds.map(function(id){
+          const a = DB.athletes.filter(x=>x.id===id)[0]; if(!a) return '';
+          const on = state.selected.indexOf(id)>=0;
+          return '<div class="ath-row '+(on?'on':'')+'" data-aid="'+id+'">' +
+            '<div><div class="n">'+esc(a.lastName)+' '+esc(a.firstName)+'</div>' +
+            '<div class="m">'+esc(a.club)+' · '+esc(a.city)+' · '+a.weight+' КГ</div></div>' +
+            '<span style="color:'+(on?'var(--blood-l)':'var(--bone-faint)')+'">'+(on?'✓':'+')+'</span></div>';
+        }).join('') + '</div>';
+    } else if(step===4){
+      const opts = [['random','СЛУЧАЙНАЯ ЖЕРЕБЬЁВКА'],['manual','РУЧНОЙ ПОСЕВ'],['rating','ПО РЕЙТИНГУ']];
+      content = '<div style="font-size:13px;letter-spacing:.2em;text-transform:uppercase;margin-bottom:16px">Порядок посева</div>' +
+        '<div class="format-grid">' + opts.map(function(o){
+          return '<button class="format-btn '+(state.seeding===o[0]?'on':'')+'" data-seed="'+o[0]+'">' +
+            '<div class="t">'+o[1]+'</div></button>';
+        }).join('') + '</div>';
+    } else {
+      content = '<div style="text-align:center;padding:24px 0">' +
+        '<div style="font-size:40px;color:var(--blood);margin-bottom:16px">⛓</div>' +
+        '<div style="font-size:14px;letter-spacing:.2em;text-transform:uppercase;margin-bottom:8px">Готово к созданию</div>' +
+        '<div style="font-size:12px;color:var(--bone-faint)">' + state.format.toUpperCase() + ' · ' + Math.min(state.size, state.selected.length) + ' участников · посев: ' + state.seeding + '</div>' +
+        '</div>';
+    }
+    const stepNodes = [1,2,3,4,5].map(function(n){
+      let html = '<div class="step-num '+(state.step>=n?'on':'')+'">'+n+'</div>';
+      if(n<5) html += '<div class="step-line '+(state.step>n?'on':'')+'"></div>';
+      return html;
+    }).join('');
+    const disabled = (state.step===3 && state.selected.length<2) ? 'disabled' : '';
+    inner.innerHTML =
+      '<div class="modal-head"><h3>МАСТЕР СОЗДАНИЯ СЕТКИ</h3><button class="x" data-cancel>×</button></div>' +
+      '<div class="modal-body">' +
+        '<div class="steps">'+stepNodes+'</div>' +
+        '<div id="w-content">'+content+'</div>' +
+        '<div class="modal-foot" style="justify-content:space-between">' +
+          '<button class="btn ghost" data-back>'+(state.step===1?'ОТМЕНА':'← НАЗАД')+'</button>' +
+          (state.step<5 ? '<button class="btn primary" data-next '+disabled+'>ДАЛЕЕ →</button>' : '<button class="btn primary" data-create>СОЗДАТЬ СЕТКУ</button>') +
+        '</div>' +
+      '</div>';
+    $$('[data-fmt]', inner).forEach(function(b){ b.onclick = function(){ state.format = b.getAttribute('data-fmt'); renderWizard(); }; });
+    $$('[data-seed]', inner).forEach(function(b){ b.onclick = function(){ state.seeding = b.getAttribute('data-seed'); renderWizard(); }; });
+    const sizeInp = $('#w-size', inner);
+    if(sizeInp) sizeInp.oninput = function(e){ state.size = Math.max(2, +e.target.value||2); };
+    $$('.ath-row', inner).forEach(function(r){
+      r.onclick = function(){
+        const id = r.getAttribute('data-aid');
+        const idx = state.selected.indexOf(id);
+        if(idx>=0) state.selected.splice(idx,1); else state.selected.push(id);
+        renderWizard();
+      };
+    });
+    const cancelBtn = $('[data-cancel]', inner); if(cancelBtn) cancelBtn.onclick = function(){ wrap.remove(); };
+    const backBtn = $('[data-back]', inner);
+    if(backBtn) backBtn.onclick = function(){ if(state.step===1) wrap.remove(); else { state.step--; renderWizard(); } };
+    const nextBtn = $('[data-next]', inner);
+    if(nextBtn) nextBtn.onclick = function(){ state.step++; renderWizard(); };
+    const createBtn = $('[data-create]', inner);
+    if(createBtn) createBtn.onclick = function(){
+      const list = state.selected.slice(0, state.size);
+      DB.pushUndo();
+      const result = buildBracket(cat.tournamentId, cat.id, cat.name, state.format, list, state.seeding==='manual'?list:null);
+      DB.brackets.push(result.bracket);
+      DB.matches.push.apply(DB.matches, result.matches);
+      DB.log(result.bracket.id, 'Создана сетка', state.format + ' · ' + list.length + ' участников');
+      DB.save();
+      wrap.remove();
+      go('/brackets/' + result.bracket.id);
+    };
+  }
+  renderWizard();
+}
+
+/* ---------- Athlete ---------- */
+function openAthleteForm(id){
+  const a = id ? DB.athletes.filter(x=>x.id===id)[0] : null;
+  const form = a || {firstName:'',lastName:'',country:'RU',city:'Москва',club:'',weight:70,hand:'right'};
+  const wrap = modal(
+    '<div class="modal-head"><h3>'+(a?'РЕДАКТИРОВАТЬ':'НОВЫЙ СПОРТСМЕН')+'</h3><button class="x" onclick="closeModal()">×</button></div>' +
+    '<div class="modal-body">' +
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">' +
+        '<div><label class="label">Имя</label><input class="input" id="af" value="'+esc(form.firstName)+'"></div>' +
+        '<div><label class="label">Фамилия</label><input class="input" id="al" value="'+esc(form.lastName)+'"></div>' +
+        '<div><label class="label">Страна</label><input class="input" id="ac" value="'+esc(form.country)+'"></div>' +
+        '<div><label class="label">Город</label><input class="input" id="act" value="'+esc(form.city)+'"></div>' +
+        '<div><label class="label">Клуб</label><input class="input" id="acl" value="'+esc(form.club)+'"></div>' +
+        '<div><label class="label">Вес</label><input class="input" type="number" id="aw" value="'+form.weight+'"></div>' +
+        '<div><label class="label">Рука</label><select class="input" id="ah">' +
+          '<option value="right" '+(form.hand==='right'?'selected':'')+'>ПРАВАЯ</option>' +
+          '<option value="left" '+(form.hand==='left'?'selected':'')+'>ЛЕВАЯ</option>' +
+        '</select></div>' +
+      '</div>' +
+      '<div class="modal-foot">' +
+        '<button class="btn ghost" onclick="closeModal()">ОТМЕНА</button>' +
+        '<button class="btn primary" id="save-a-btn">'+(a?'СОХРАНИТЬ':'ДОБАВИТЬ')+'</button>' +
+      '</div>' +
+    '</div>'
+  );
+  $('#save-a-btn', wrap).onclick = function(){
+    const data = {
+      firstName: $('#af', wrap).value.trim(),
+      lastName: $('#al', wrap).value.trim(),
+      country: $('#ac', wrap).value, city: $('#act', wrap).value,
+      club: $('#acl', wrap).value, weight: +$('#aw', wrap).value,
+      hand: $('#ah', wrap).value,
+    };
+    if(!data.firstName || !data.lastName) return;
+    DB.pushUndo();
+    if(a) Object.assign(a, data);
+    else DB.athletes.push(Object.assign({id:uid()}, data));
+    DB.save(); closeModal(); renderApp();
+  };
+}
+function deleteAthleteConfirm(id){
+  if(!confirm('Удалить спортсмена?')) return;
+  DB.pushUndo();
+  DB.athletes = DB.athletes.filter(a=>a.id!==id);
+  DB.categories.forEach(function(c){ c.athleteIds = c.athleteIds.filter(x=>x!==id); });
+  DB.save(); renderApp();
+}
+function openImportAthletes(){
+  const wrap = modal(
+    '<div class="modal-head"><h3>ИМПОРТ CSV</h3><button class="x" onclick="closeModal()">×</button></div>' +
+    '<div class="modal-body">' +
+      '<div style="font-size:11px;color:var(--bone-faint);margin-bottom:12px">Формат (по строке): Имя,Фамилия,Клуб,Вес,Рука(right|left)</div>' +
+      '<textarea class="input" id="csv-in" rows="10" style="font-family:\'JetBrains Mono\',monospace;font-size:12px" placeholder="Иван,Петров,ЖЕЛЕЗО,75,right&#10;Алексей,Сидоров,ТИТАН,82,right"></textarea>' +
+      '<div class="modal-foot">' +
+        '<button class="btn ghost" onclick="closeModal()">ОТМЕНА</button>' +
+        '<button class="btn primary" id="do-import">ИМПОРТИРОВАТЬ</button>' +
+      '</div>' +
+    '</div>'
+  );
+  $('#do-import', wrap).onclick = function(){
+    const text = $('#csv-in', wrap).value;
+    const lines = text.split('\n').map(l=>l.trim()).filter(Boolean);
+    let count = 0;
+    DB.pushUndo();
+    for(const l of lines){
+      const p = l.split(',').map(s=>(s||'').trim());
+      if(!p[0] || !p[1]) continue;
+      DB.athletes.push({
+        id:uid(), firstName:p[0], lastName:p[1], country:'RU', city:'Москва',
+        club: p[2]||'', weight: Number(p[3])||70, hand: p[4]==='left'?'left':'right',
+      });
+      count++;
+    }
+    DB.save(); closeModal(); renderApp();
+    alert('Импортировано: ' + count);
+  };
+}
+function filterAthletes(q){
+  const lower = q.toLowerCase();
+  $$('#ath-tbody tr').forEach(function(tr){
+    const s = tr.getAttribute('data-search')||'';
+    tr.style.display = s.indexOf(lower)>=0 ? '' : 'none';
+  });
+}
+function deleteBracketConfirm(id){
+  if(!confirm('Удалить сетку?')) return;
+  const b = DB.brackets.filter(x=>x.id===id)[0]; if(!b) return;
+  DB.pushUndo();
+  DB.brackets = DB.brackets.filter(x=>x.id!==id);
+  DB.matches = DB.matches.filter(m=>b.matchIds.indexOf(m.id)<0);
+  DB.save(); renderApp();
+}
+
+function openHistory(){
+  const bid = editorState.bracketId;
+  const entries = DB.history.filter(h=>h.bracketId===bid);
+  modal(
+    '<div class="modal-head"><h3>ИСТОРИЯ ИЗМЕНЕНИЙ</h3><button class="x" onclick="closeModal()">×</button></div>' +
+    '<div class="modal-body">' +
+      (entries.length===0 ? '<div style="color:var(--bone-faint);font-size:12px">Нет записей.</div>' :
+        '<div style="max-height:400px;overflow:auto">' + entries.map(function(h){
+          return '<div style="display:flex;gap:16px;padding:8px 4px;border-bottom:1px solid var(--steel);align-items:center">' +
+            '<div style="font-family:\'JetBrains Mono\',monospace;font-size:10px;color:var(--bone-faint);min-width:120px">'+fmtDateTime(h.timestamp)+'</div>' +
+            '<div style="font-size:12px">'+esc(h.action)+'</div>' +
+            '<div style="font-size:11px;color:var(--bone-faint);margin-left:auto">'+esc(h.details||'')+'</div>' +
+          '</div>';
+        }).join('') + '</div>') +
+    '</div>', {wide:true});
+}
+
+function openTemplateModal(){
+  const bracket = DB.brackets.filter(b=>b.id===editorState.bracketId)[0];
+  const wrap = modal(
+    '<div class="modal-head"><h3>СОХРАНИТЬ КАК ШАБЛОН</h3><button class="x" onclick="closeModal()">×</button></div>' +
+    '<div class="modal-body">' +
+      '<div style="margin-bottom:12px"><label class="label">Название</label><input class="input" id="tmp-name" value="'+esc(bracket?bracket.name:'')+'"></div>' +
+      '<div class="modal-foot">' +
+        '<button class="btn ghost" onclick="closeModal()">ОТМЕНА</button>' +
+        '<button class="btn primary" id="save-tmp">СОХРАНИТЬ</button>' +
+      '</div>' +
+    '</div>'
+  );
+  $('#save-tmp', wrap).onclick = function(){
+    const name = $('#tmp-name', wrap).value.trim();
+    if(!name || !bracket) return;
+    DB.templates.push({id:uid(), name:name, format:bracket.format, size:0});
+    DB.save(); closeModal(); alert('Шаблон сохранён');
+  };
+}
+
+function duplicateCurrentBracket(){
+  const b = DB.brackets.filter(x=>x.id===editorState.bracketId)[0]; if(!b) return;
+  const newId = uid();
+  const oldMatches = DB.matches.filter(m=>m.bracketId===b.id);
+  const idMap = new Map(oldMatches.map(m=>[m.id, uid()]));
+  const newMatches = oldMatches.map(function(m){
+    return Object.assign({}, m, {
+      id: idMap.get(m.id), bracketId: newId,
+      nextMatchId: m.nextMatchId ? idMap.get(m.nextMatchId) : null,
+      loserNextMatchId: m.loserNextMatchId ? idMap.get(m.loserNextMatchId) : null,
+    });
+  });
+  const newBracket = Object.assign({}, b, {
+    id:newId, name: b.name+' (копия)',
+    matchIds:newMatches.map(m=>m.id),
+    createdAt:Date.now(), updatedAt:Date.now(),
+  });
+  DB.pushUndo();
+  DB.brackets.push(newBracket);
+  DB.matches.push.apply(DB.matches, newMatches);
+  DB.save();
+  go('/brackets/' + newId);
+}
+
+/* ============================================================
+   EXPORT
+   ============================================================ */
+function bracketToSVG(bid){
+  const bracket = DB.brackets.filter(b=>b.id===bid)[0];
+  const tournament = DB.tournaments.filter(t=>t.id===bracket?.tournamentId)[0];
+  const matches = DB.matches.filter(m=>m.bracketId===bid);
+  const athletes = DB.athletes;
+  if(!bracket) return '';
+  const pad = 80;
+  const xs = matches.map(m=>m.x); const ys = matches.map(m=>m.y);
+  const minX = xs.length ? Math.min.apply(null, xs) : 0;
+  const minY = ys.length ? Math.min.apply(null, ys) : 0;
+  const maxX = Math.max.apply(null, xs.map(x=>x+220).concat([400]));
+  const maxY = Math.max.apply(null, ys.map(y=>y+80).concat([300]));
+  const W = maxX - minX + pad*2;
+  const H = maxY - minY + pad*2 + 100;
+  const nameOf = function(id){
+    if(!id) return '—';
+    const a = athletes.filter(x=>x.id===id)[0];
+    return a ? (a.lastName + ' ' + a.firstName.charAt(0) + '.') : '—';
+  };
+  const map = new Map(matches.map(m=>[m.id,m]));
+  let lines = '';
+  for(const m of matches){
+    if(!m.nextMatchId) continue;
+    const nx = map.get(m.nextMatchId); if(!nx) continue;
+    const x1 = m.x - minX + pad + 220;
+    const y1 = m.y - minY + pad + 100 + 40;
+    const x2 = nx.x - minX + pad;
+    const y2 = nx.y - minY + pad + 100 + 40;
+    const midX = (x1+x2)/2;
+    lines += '<path d="M '+x1+' '+y1+' H '+midX+' V '+y2+' H '+x2+'" fill="none" stroke="#3a3a3a" stroke-width="1.5"/>';
+  }
+  let cells = '';
+  for(const m of matches){
+    const x = m.x - minX + pad;
+    const y = m.y - minY + pad + 100;
+    const winnerA = m.winnerId && m.winnerId===m.athleteAId;
+    const winnerB = m.winnerId && m.winnerId===m.athleteBId;
+    const c = m.status==='cancelled';
+    cells += '<g transform="translate('+x+','+y+')">' +
+      '<rect width="220" height="80" fill="#111" stroke="'+(c?'#5a5a5a':'#2a2a2a')+'" stroke-width="1.5"/>' +
+      '<rect width="220" height="26" fill="#161616" stroke="#2a2a2a"/>' +
+      '<text x="8" y="17" fill="#9a9a9a" font-family="Oswald, sans-serif" font-size="10" font-weight="700" letter-spacing="2">MATCH '+(m.position+1)+' · '+esc(m.label||'')+'</text>' +
+      '<text x="8" y="44" fill="'+(winnerA?'#fff':'#9a9a9a')+'" font-family="Oswald, sans-serif" font-size="13" font-weight="600">'+esc(nameOf(m.athleteAId))+'</text>' +
+      '<text x="8" y="62" fill="'+(winnerB?'#fff':'#9a9a9a')+'" font-family="Oswald, sans-serif" font-size="13" font-weight="600">'+esc(nameOf(m.athleteBId))+'</text>' +
+      '<text x="200" y="44" fill="#e8e8e8" font-family="JetBrains Mono, monospace" font-size="14" text-anchor="end">'+m.scoreA+'</text>' +
+      '<text x="200" y="62" fill="#e8e8e8" font-family="JetBrains Mono, monospace" font-size="14" text-anchor="end">'+m.scoreB+'</text>' +
+      (winnerA?'<rect x="0" y="30" width="3" height="16" fill="#c1121f"/>':'') +
+      (winnerB?'<rect x="0" y="48" width="3" height="16" fill="#c1121f"/>':'') +
+    '</g>';
+  }
+  return '<svg xmlns="http://www.w3.org/2000/svg" width="'+W+'" height="'+H+'" viewBox="0 0 '+W+' '+H+'">' +
+    '<rect width="100%" height="100%" fill="#0a0a0a"/>' +
+    '<text x="'+pad+'" y="40" fill="#fff" font-family="Oswald, sans-serif" font-size="24" font-weight="700" letter-spacing="3">SETKA PRO · TOURNAMENT MANAGER</text>' +
+    '<text x="'+pad+'" y="65" fill="#9a9a9a" font-family="Oswald, sans-serif" font-size="14" letter-spacing="2">'+esc(tournament?tournament.name:'')+' — '+esc(bracket.name)+'</text>' +
+    '<text x="'+pad+'" y="85" fill="#c1121f" font-family="Oswald, sans-serif" font-size="11" font-weight="700" letter-spacing="3">'+bracket.format.toUpperCase()+'</text>' +
+    lines + cells + '</svg>';
+}
+function exportSVG(bid){
+  const svg = bracketToSVG(bid);
+  const blob = new Blob([svg], {type:'image/svg+xml'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const b = DB.brackets.filter(x=>x.id===bid)[0];
+  a.href = url; a.download = (b?b.name:'bracket') + '.svg';
+  a.click(); URL.revokeObjectURL(url);
+}
+function exportPNG(bid){
+  const svg = bracketToSVG(bid);
+  const blob = new Blob([svg], {type:'image/svg+xml'});
+  const url = URL.createObjectURL(blob);
+  const img = new Image();
+  img.onload = function(){
+    const canvas = document.createElement('canvas');
+    canvas.width = img.width; canvas.height = img.height;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(img, 0, 0);
+    canvas.toBlob(function(b){
+      if(!b) return;
+      const u = URL.createObjectURL(b);
+      const a = document.createElement('a');
+      const br = DB.brackets.filter(x=>x.id===bid)[0];
+      a.href = u; a.download = (br?br.name:'bracket') + '.png';
+      a.click(); URL.revokeObjectURL(u);
+    }, 'image/png');
+    URL.revokeObjectURL(url);
+  };
+  img.src = url;
+}
+function printBracket(bid){
+  const svg = bracketToSVG(bid);
+  const b = DB.brackets.filter(x=>x.id===bid)[0];
+  const w = window.open('', '_blank');
+  if(!w) return;
+  w.document.write('<!doctype html><html><head><title>'+esc(b?b.name:'')+'</title>' +
+    '<style>@page{size:A3 landscape;margin:10mm}html,body{margin:0;background:#0a0a0a}svg{width:100%;height:auto}</style>' +
+    '</head><body>'+svg+'</body></html>');
+  w.document.close();
+  setTimeout(function(){ w.focus(); w.print(); }, 300);
+}
+function openExportModal(){
+  const wrap = modal(
+    '<div class="modal-head"><h3>ЭКСПОРТ СЕТКИ</h3><button class="x" onclick="closeModal()">×</button></div>' +
+    '<div class="modal-body">' +
+      '<div style="display:flex;flex-direction:column;gap:8px">' +
+        '<button class="btn" style="justify-content:flex-start" id="exp-svg">↧ СКАЧАТЬ SVG</button>' +
+        '<button class="btn" style="justify-content:flex-start" id="exp-png">↧ СКАЧАТЬ PNG</button>' +
+        '<button class="btn" style="justify-content:flex-start" id="exp-print">🖨 ПЕЧАТЬ / PDF</button>' +
+      '</div>' +
+    '</div>'
+  );
+  $('#exp-svg', wrap).onclick = function(){ exportSVG(editorState.bracketId); closeModal(); };
+  $('#exp-png', wrap).onclick = function(){ exportPNG(editorState.bracketId); closeModal(); };
+  $('#exp-print', wrap).onclick = function(){ printBracket(editorState.bracketId); closeModal(); };
+}
+
+/* ============================================================
+   AUTH + SETTINGS
+   ============================================================ */
+function doLogin(){
+  const nameEl = document.getElementById('login-name');
+  const roleEl = document.getElementById('login-role');
+  const name = nameEl ? (nameEl.value.trim() || 'Гость') : 'Гость';
+  const role = roleEl ? roleEl.value : 'organizer';
+  DB.user = { id:uid(), login:'user', name:name, role:role };
+  DB.save();
+  go('/');
+}
+function logout(){ DB.user = null; DB.save(); go('/'); }
+function resetStore(){
+  if(!confirm('Сбросить ВСЕ данные включая корзину?')) return;
+  localStorage.removeItem(STORE_KEY);
+  location.reload();
+}
+function reloadDemo(){
+  if(!confirm('Загрузить демо-данные? Текущие данные будут перезаписаны.')) return;
+  seedDemo();
+  location.reload();
+}
+
+/* ============================================================
+   BOOT
+   ============================================================ */
+window.addEventListener('error', function(e){ console.error('Global error', e.error||e.message); });
+window.addEventListener('unhandledrejection', function(e){ console.error('Unhandled promise', e.reason); });
+
+(function boot(){
+  try {
+    DB.load();
+    if(!DB.tournaments.length && !DB.athletes.length && !DB.trash.length) seedDemo();
+    if(!location.hash) location.hash = '#/';
+    parseHash();
+    renderApp();
+  } catch(e){
+    console.error(e);
+    showBootError('boot: ' + e.message + '\n\n' + (e.stack||''));
+  }
+})();
+
+/* ---------- Expose ---------- */
+window.go = go;
+window.logout = logout;
+window.doLogin = doLogin;
+window.resetStore = resetStore;
+window.reloadDemo = reloadDemo;
+window.closeModal = closeModal;
+window.openCreateTournament = openCreateTournament;
+window.openEditTournament = openEditTournament;
+window.openCreateCategory = openCreateCategory;
+window.openBracketWizard = openBracketWizard;
+window.openAthleteForm = openAthleteForm;
+window.deleteAthleteConfirm = deleteAthleteConfirm;
+window.openImportAthletes = openImportAthletes;
+window.filterAthletes = filterAthletes;
+window.deleteBracketConfirm = deleteBracketConfirm;
+window.deleteCategoryConfirm = deleteCategoryConfirm;
+window.deleteTournamentConfirm = deleteTournamentConfirm;
+window.bulkDeleteTournaments = bulkDeleteTournaments;
+window.toggleBulkSelect = toggleBulkSelect;
+window.clearBulkSelect = clearBulkSelect;
+window.restoreTournament = restoreTournament;
+window.permanentlyDelete = permanentlyDelete;
+window.emptyTrash = emptyTrash;
+window.exportTournamentJSON = exportTournamentJSON;
+window.exportTrashJSON = exportTrashJSON;
+window.exportAllJSON = exportAllJSON;
+window.globalUndo = globalUndo;
+window.globalRedo = globalRedo;
+window.editorUndo = editorUndo;
+window.editorRedo = editorRedo;
+window.editorAddMatch = editorAddMatch;
+window.zoomBy = zoomBy;
+window.centerView = centerView;
+window.fitToScreen = fitToScreen;
+window.toggleMiniMap = toggleMiniMap;
+window.openHistory = openHistory;
+window.openTemplateModal = openTemplateModal;
+window.duplicateCurrentBracket = duplicateCurrentBracket;
+window.openExportModal = openExportModal;
+window.exportSVG = exportSVG;
+window.exportPNG = exportPNG;
+window.printBracket = printBracket;
+</script>
+</body>
 </html>
