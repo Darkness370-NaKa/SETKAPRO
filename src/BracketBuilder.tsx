@@ -86,21 +86,27 @@ export default function BracketBuilder({client,canEdit,onMessage,initialBracketI
    changed=false;
    for(const match of graph){
     if(match.status!=="pending"||!["winners","losers"].includes(match.bracket_side))continue;
+    const slots=["athlete_a_id","athlete_b_id"] as const;
+    const resolved=slots.map(slot=>{
+     if(match[slot])return true;
+     const feeders=graph.filter(source=>
+      (source.next_match_id===match.id&&source.next_slot===slot)||
+      (source.loser_next_match_id===match.id&&source.loser_next_slot===slot)
+     );
+     return feeders.length>0&&feeders.every(source=>
+      source.status==="bye"&&(
+       (source.loser_next_match_id===match.id&&source.loser_next_slot===slot)||
+       source.winner_id==null
+      )
+     );
+    });
     const present=Number(Boolean(match.athlete_a_id))+Number(Boolean(match.athlete_b_id));
-    if(present!==1)continue;
-    const emptySlot=match.athlete_a_id?"athlete_b_id":"athlete_a_id";
-    const feeders=graph.filter(source=>
-      source.loser_next_match_id===match.id&&source.loser_next_slot===emptySlot
-    );
-    // Only a bye in a feeder match proves that no loser can arrive.
-    // A completed feeder must have delivered its loser; never treat a missing
-    // propagation from a completed match as an automatic pass.
-    if(!feeders.length||feeders.some(source=>source.status!=="bye"))continue;
-    const winnerId=match.athlete_a_id||match.athlete_b_id;
+    if(present>1||!resolved.every(Boolean))continue;
+    const winnerId=match.athlete_a_id||match.athlete_b_id||null;
     const {error:updateError}=await client.from("matches").update({status:"bye",winner_id:winnerId,score_a:null,score_b:null,finish_reason:null}).eq("id",match.id).eq("status","pending");
     if(updateError){onMessage("Не удалось оформить автоматический проход: "+updateError.message);continue}
     match.status="bye";match.winner_id=winnerId;changed=true;
-    if(match.next_match_id&&match.next_slot){
+    if(winnerId&&match.next_match_id&&match.next_slot){
       const target=graph.find(x=>x.id===match.next_match_id);
       if(!target){onMessage("Не найден следующий матч для автоматического прохода.");continue}
       const current=target[match.next_slot];
@@ -155,15 +161,19 @@ export default function BracketBuilder({client,canEdit,onMessage,initialBracketI
    const size=2**Math.ceil(Math.log2(selectedAthletes.length));
    const wbRounds=Math.log2(size);
    const wb:any[][]=[];
+   let seedPositions=[1,2];
+   while(seedPositions.length<size)seedPositions=seedPositions.flatMap(position=>[position,size+1-position]);
+   const seededAthletes:string[] = Array(size).fill(null);
+   selectedAthletes.forEach((athleteId,index)=>{seededAthletes[seedPositions[index]-1]=athleteId;});
    for(let r=1;r<=wbRounds;r++){
     const count=size/2**r;wb[r]=[];
     for(let m=1;m<=count;m++){
      const id=crypto.randomUUID();
      const row:any={id,bracket_id:created.id,round_no:r,match_no:m,bracket_side:"winners"};
      if(r===1){
-      const a=selectedAthletes[(m-1)*2]||null,b=selectedAthletes[(m-1)*2+1]||null;
+      const a=seededAthletes[(m-1)*2]||null,b=seededAthletes[(m-1)*2+1]||null;
       row.athlete_a_id=a;row.athlete_b_id=b;
-      if(a&&!b){row.winner_id=a;row.status="bye"}
+      if((a&&!b)||(!a&&b)){row.winner_id=a||b;row.status="bye"}
      }
      wb[r][m]=row;rows.push(row);
     }
