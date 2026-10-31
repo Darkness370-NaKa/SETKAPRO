@@ -163,10 +163,15 @@ export default function Management({client,module,canEdit,onMessage}:{client:any
   if(!canEdit||module!=="athletes"||!importRows.length)return;
   setImportBusy(true);
   try{
-   const {data:existing,error}=await client.from("athletes").select("last_name,first_name,birth_date");
-   if(error)throw error;
+   const existing:any[]=[];
+   for(let offset=0;;offset+=1000){
+    const {data:page,error}=await client.from("athletes").select("last_name,first_name,birth_date").order("id").range(offset,offset+999);
+    if(error)throw error;
+    existing.push(...(page||[]));
+    if((page||[]).length<1000)break;
+   }
    const key=(a:any)=>[a.last_name,a.first_name,a.birth_date||""].map((v:any)=>String(v||"").trim().toLocaleLowerCase("ru")).join("|");
-   const seen=new Set((existing||[]).map(key));
+   const seen=new Set(existing.map(key));
    const unique=importRows.filter(a=>{const k=key(a);if(seen.has(k))return false;seen.add(k);return true;});
    const duplicates=importRows.length-unique.length;
    if(!unique.length){onMessage("Новых спортсменов нет: все строки уже есть в базе.");return;}
