@@ -132,7 +132,7 @@ export default function App() {
   async function exportTournamentData() {
     if (!supabase) return;
     setBusy(true);
-    const tables = ['tournaments','athletes','clubs','registrations','participation_applications','weigh_ins','tournament_categories','brackets','matches'];
+    const tables = ['tournaments','athletes','clubs','registrations','participation_applications','weigh_ins','tournament_categories','brackets','matches','match_change_log'];
     const data: Record<string, unknown[]> = {};
     for (const table of tables) {
       const allRows: unknown[] = [];
