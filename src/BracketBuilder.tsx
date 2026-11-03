@@ -466,7 +466,7 @@ export default function BracketBuilder({client,canEdit,onMessage,initialBracketI
  const selectedMatch=matches.find(m=>m.id===selectedMatchId)||null;
  const startCanvasPan=(e:React.PointerEvent<HTMLDivElement>)=>{
   if(e.button!==0||!(e.target as HTMLElement).closest(".bracket-rounds,.bracket-connectors"))return;
-  if((e.target as HTMLElement).closest("button,input,select,textarea,summary,a"))return;
+  if((e.target as HTMLElement).closest(".match-card,button,input,select,textarea,summary,a"))return;
   panStart.current={x:e.clientX,y:e.clientY,offsetX:canvasOffset.x,offsetY:canvasOffset.y};
   setCanvasPanning(true);e.currentTarget.setPointerCapture(e.pointerId);
  };
