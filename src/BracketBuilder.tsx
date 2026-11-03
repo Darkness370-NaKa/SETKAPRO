@@ -478,15 +478,18 @@ export default function BracketBuilder({client,canEdit,onMessage,initialBracketI
  const zoomCanvas=(delta:number)=>setZoom(v=>Math.max(.35,Math.min(1.8,Number((v+delta).toFixed(2)))));
  const fitCanvas=()=>{setZoom(0.72);setCanvasOffset({x:24,y:24})};
  const centerCanvas=()=>setCanvasOffset({x:24,y:24});
- const connectorPaths=matches.filter(m=>m.next_match_id).map(m=>{
-  const target=matches.find(t=>t.id===m.next_match_id);
+ const connectorPaths=matches.flatMap(m=>[
+  m.next_match_id?{targetId:m.next_match_id,edge:"winner" as const}:null,
+  m.loser_next_match_id?{targetId:m.loser_next_match_id,edge:"loser" as const}:null
+ ].filter(Boolean).map(edge=>{
+  const target=matches.find(t=>t.id===edge!.targetId);
   if(!target)return null;
   const fromRound=rounds.indexOf(m.round_no),toRound=rounds.indexOf(target.round_no);
   const fromIndex=matches.filter(x=>x.round_no===m.round_no).sort((a,b)=>a.match_no-b.match_no).findIndex(x=>x.id===m.id);
   const toIndex=matches.filter(x=>x.round_no===target.round_no).sort((a,b)=>a.match_no-b.match_no).findIndex(x=>x.id===target.id);
   const x1=fromRound*300+278,y1=74+fromIndex*236+78,x2=toRound*300+8,y2=74+toIndex*236+78;
-  return {id:m.id,d:`M ${x1} ${y1} C ${x1+42} ${y1}, ${x2-42} ${y2}, ${x2} ${y2}`,won:m.status==="completed"||m.status==="bye"};
- }).filter(Boolean) as {id:string;d:string;won:boolean}[];
+  return {id:m.id+"-"+edge!.edge,d:`M ${x1} ${y1} C ${x1+42} ${y1}, ${x2-42} ${y2}, ${x2} ${y2}`,won:m.status==="completed"||m.status==="bye",edge:edge!.edge};
+ })).filter(Boolean) as {id:string;d:string;won:boolean;edge:"winner"|"loser"}[];
  return <section className={initialBracketId?"bracket-editor-page":"panel"}>
   {initialBracketId&&<div className="editor-topbar"><button className="secondary" onClick={onExit}>← К списку сеток</button><span>SETKA PRO / РЕДАКТОР СЕТКИ</span></div>}
   <div className="section-title"><div><h2>{initialBracketId?(brackets.find(b=>b.id===selectedBracket)?.name||"Редактор сетки"):"Конструктор турнирных сеток"}</h2><p>{initialBracketId?"Управление матчами, результатами и ходом соревнования.":"Состав участников берётся из допущенных регистраций выбранной весовой категории."}</p></div><button className="secondary" onClick={()=>initialBracketId?void openBracket(selectedBracket):void reload()} disabled={busy}><RefreshCw size={15}/> Обновить</button></div>
@@ -519,7 +522,7 @@ export default function BracketBuilder({client,canEdit,onMessage,initialBracketI
    <div className="bracket-workspace-body">
     <div ref={canvasRef} className={canvasPanning?"bracket-viewport is-panning":"bracket-viewport"} onPointerDown={startCanvasPan} onPointerMove={moveCanvasPan} onPointerUp={stopCanvasPan} onPointerCancel={stopCanvasPan} onWheel={e=>{if(e.ctrlKey||e.metaKey){e.preventDefault();zoomCanvas(e.deltaY>0?-.05:.05)}}}>
      <div className="bracket-canvas-stage" style={{transform:`translate(${canvasOffset.x}px,${canvasOffset.y}px) scale(${zoom})`}}>
-      <svg className="bracket-connectors" width={Math.max(1000,rounds.length*300)} height={Math.max(700,matches.length*118)} aria-hidden="true">{connectorPaths.map(path=><path key={path.id} d={path.d} className={path.won?"connector-path is-complete":"connector-path"}/>)}</svg>
+      <svg className="bracket-connectors" width={Math.max(1000,rounds.length*300)} height={Math.max(700,matches.length*118)} aria-hidden="true">{connectorPaths.map(path=><path key={path.id} d={path.d} className={path.edge==="loser"?"connector-path is-loser":path.won?"connector-path is-complete":"connector-path"}/>)}</svg>
       <div className="bracket-rounds">{rounds.length?rounds.map(round=><section className="bracket-round" key={round}><h3>{roundTitle(round)}</h3>{visibleMatches.filter(m=>m.round_no===round).map(match=><div key={match.id} className={selectedMatchId===match.id?"match-node is-selected":"match-node"} onClick={()=>setSelectedMatchId(match.id)}><MatchCard match={match} athletes={athletes} allMatches={matches} athleteName={athleteName} canEdit={canEdit} busy={busy} onSave={saveWinner} onViolation={recordViolation} onEditParticipants={editMatchParticipants} onDelete={deleteManualMatch} onSaveLinks={saveMatchLinks} onMove={moveManualMatch}/></div>)}</section>):<div className="empty bracket-empty"><b>{busy?"Загружаем матчи…":"В этой сетке пока нет матчей"}</b><p>{busy?"Подождите завершения загрузки.":"Сетка создана, но матчи не найдены. Обновите данные или пересоздайте сетку после проверки состава участников."}</p></div>}</div>
      </div>
     </div>
