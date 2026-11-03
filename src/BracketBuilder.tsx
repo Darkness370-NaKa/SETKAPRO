@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowDown, ArrowUp, Plus, RefreshCw, Trophy, Shuffle, ZoomIn, ZoomOut, Printer, Image as ImageIcon, Trash2, RotateCcw } from "lucide-react";
 
 type Category = { id:string; tournament_id:string; name:string; format:string; gender:string; hand:string; min_weight:number|null; max_weight:number|null };
@@ -27,6 +27,11 @@ export default function BracketBuilder({client,canEdit,onMessage,initialBracketI
  const [archivedBrackets,setArchivedBrackets]=useState<Bracket[]>([]);
  const [showTrash,setShowTrash]=useState(false);
  const [zoom,setZoom]=useState(1);
+ const [selectedMatchId,setSelectedMatchId]=useState<string>("");
+ const [canvasOffset,setCanvasOffset]=useState({x:24,y:24});
+ const [canvasPanning,setCanvasPanning]=useState(false);
+ const panStart=useRef<{x:number;y:number;offsetX:number;offsetY:number}|null>(null);
+ const canvasRef=useRef<HTMLDivElement|null>(null);
  const [busy,setBusy]=useState(false);
  const athleteMap=useMemo(()=>new Map(athletes.map(a=>[a.id,a])),[athletes]);
  const category=categories.find(c=>c.id===selectedCategory);
@@ -458,6 +463,30 @@ export default function BracketBuilder({client,canEdit,onMessage,initialBracketI
  const rounds=useMemo(()=>Array.from(new Set(visibleMatches.map(m=>m.round_no))).sort((a,b)=>a-b),[visibleMatches]);
  const roundTitle=(round:number)=>{const sample=matches.find(m=>m.round_no===round);if(formatForBracket==="rr")return "Матчи";if(sample?.bracket_side==="losers")return "Утешительная сетка · раунд "+(round-100);if(sample?.bracket_side==="grand_final")return "Большой финал";if(sample?.bracket_side==="reset_final")return "Дополнительный финал";if(sample?.bracket_side==="winners")return round===Math.max(...matches.filter(m=>m.bracket_side==="winners").map(m=>m.round_no))?"Финал победителей":"Основная сетка · раунд "+round;return "Раунд "+round};
  const athleteName=(id:string|null)=>id?(athleteMap.get(id)?athleteMap.get(id)!.last_name+" "+athleteMap.get(id)!.first_name:"Спортсмен"): "Ожидает соперника";
+ const selectedMatch=matches.find(m=>m.id===selectedMatchId)||null;
+ const startCanvasPan=(e:React.PointerEvent<HTMLDivElement>)=>{
+  if(e.button!==0||!(e.target as HTMLElement).closest(".bracket-rounds,.bracket-connectors"))return;
+  if((e.target as HTMLElement).closest("button,input,select,textarea,summary,a"))return;
+  panStart.current={x:e.clientX,y:e.clientY,offsetX:canvasOffset.x,offsetY:canvasOffset.y};
+  setCanvasPanning(true);e.currentTarget.setPointerCapture(e.pointerId);
+ };
+ const moveCanvasPan=(e:React.PointerEvent<HTMLDivElement>)=>{
+  if(!panStart.current)return;
+  setCanvasOffset({x:panStart.current.offsetX+e.clientX-panStart.current.x,y:panStart.current.offsetY+e.clientY-panStart.current.y});
+ };
+ const stopCanvasPan=()=>{panStart.current=null;setCanvasPanning(false)};
+ const zoomCanvas=(delta:number)=>setZoom(v=>Math.max(.35,Math.min(1.8,Number((v+delta).toFixed(2)))));
+ const fitCanvas=()=>{setZoom(0.72);setCanvasOffset({x:24,y:24})};
+ const centerCanvas=()=>setCanvasOffset({x:24,y:24});
+ const connectorPaths=matches.filter(m=>m.next_match_id).map(m=>{
+  const target=matches.find(t=>t.id===m.next_match_id);
+  if(!target)return null;
+  const fromRound=rounds.indexOf(m.round_no),toRound=rounds.indexOf(target.round_no);
+  const fromIndex=matches.filter(x=>x.round_no===m.round_no).sort((a,b)=>a.match_no-b.match_no).findIndex(x=>x.id===m.id);
+  const toIndex=matches.filter(x=>x.round_no===target.round_no).sort((a,b)=>a.match_no-b.match_no).findIndex(x=>x.id===target.id);
+  const x1=fromRound*300+278,y1=74+fromIndex*236+78,x2=toRound*300+8,y2=74+toIndex*236+78;
+  return {id:m.id,d:`M ${x1} ${y1} C ${x1+42} ${y1}, ${x2-42} ${y2}, ${x2} ${y2}`,won:m.status==="completed"||m.status==="bye"};
+ }).filter(Boolean) as {id:string;d:string;won:boolean}[];
  return <section className={initialBracketId?"bracket-editor-page":"panel"}>
   {initialBracketId&&<div className="editor-topbar"><button className="secondary" onClick={onExit}>← К списку сеток</button><span>SETKA PRO / РЕДАКТОР СЕТКИ</span></div>}
   <div className="section-title"><div><h2>{initialBracketId?(brackets.find(b=>b.id===selectedBracket)?.name||"Редактор сетки"):"Конструктор турнирных сеток"}</h2><p>{initialBracketId?"Управление матчами, результатами и ходом соревнования.":"Состав участников берётся из допущенных регистраций выбранной весовой категории."}</p></div><button className="secondary" onClick={()=>initialBracketId?void openBracket(selectedBracket):void reload()} disabled={busy}><RefreshCw size={15}/> Обновить</button></div>
@@ -482,7 +511,21 @@ export default function BracketBuilder({client,canEdit,onMessage,initialBracketI
    const detail=ev.action==="DELETE"?"Матч удалён":ev.action==="INSERT"?"Матч создан":snapshot.finish_reason==="fouls"?"Зафиксирован результат по фолам":snapshot.finish_reason==="score"?"Сохранён результат боя":"Обновлены данные матча";
    return <div className="match-history-row" key={ev.id}><b>Матч {matchNo}</b><span>{detail}</span><time>{new Date(ev.changed_at).toLocaleString("ru-RU")}</time></div>;
   }):<p>Изменений пока нет.</p>}</section>}
-  {selectedBracket&&<div className="bracket-viewport"><div className="bracket-rounds" style={{transform:`scale(${zoom})`,transformOrigin:"top left"}}>{rounds.length?rounds.map(round=><section className="bracket-round" key={round}><h3>{roundTitle(round)}</h3>{visibleMatches.filter(m=>m.round_no===round).map(match=><MatchCard key={match.id} match={match} athletes={athletes} allMatches={matches} athleteName={athleteName} canEdit={canEdit} busy={busy} onSave={saveWinner} onViolation={recordViolation} onEditParticipants={editMatchParticipants} onDelete={deleteManualMatch} onSaveLinks={saveMatchLinks} onMove={moveManualMatch}/>)}</section>):<div className="empty bracket-empty"><b>{busy?"Загружаем матчи…":"В этой сетке пока нет матчей"}</b><p>{busy?"Подождите завершения загрузки.":"Сетка создана, но матчи не найдены. Обновите данные или пересоздайте сетку после проверки состава участников."}</p></div>}</div></div>}
+  {selectedBracket&&<div className="bracket-workspace">
+   <div className="bracket-canvas-toolbar">
+    <div className="canvas-tool-group"><span className="canvas-live-dot"/><b>РАБОЧЕЕ ПОЛЕ</b><span>{matches.length} матчей · {rounds.length} раундов</span></div>
+    <div className="canvas-tool-group"><button type="button" className="secondary" onClick={()=>zoomCanvas(-.1)} title="Уменьшить">−</button><span className="zoom-label">{Math.round(zoom*100)}%</span><button type="button" className="secondary" onClick={()=>zoomCanvas(.1)} title="Увеличить">＋</button><button type="button" className="secondary" onClick={centerCanvas}>Центр</button><button type="button" className="secondary" onClick={fitCanvas}>Вписать</button></div>
+   </div>
+   <div className="bracket-workspace-body">
+    <div ref={canvasRef} className={canvasPanning?"bracket-viewport is-panning":"bracket-viewport"} onPointerDown={startCanvasPan} onPointerMove={moveCanvasPan} onPointerUp={stopCanvasPan} onPointerCancel={stopCanvasPan} onWheel={e=>{if(e.ctrlKey||e.metaKey){e.preventDefault();zoomCanvas(e.deltaY>0?-.05:.05)}}}>
+     <div className="bracket-canvas-stage" style={{transform:`translate(${canvasOffset.x}px,${canvasOffset.y}px) scale(${zoom})`}}>
+      <svg className="bracket-connectors" width={Math.max(1000,rounds.length*300)} height={Math.max(700,matches.length*118)} aria-hidden="true">{connectorPaths.map(path=><path key={path.id} d={path.d} className={path.won?"connector-path is-complete":"connector-path"}/>)}</svg>
+      <div className="bracket-rounds">{rounds.length?rounds.map(round=><section className="bracket-round" key={round}><h3>{roundTitle(round)}</h3>{visibleMatches.filter(m=>m.round_no===round).map(match=><div key={match.id} className={selectedMatchId===match.id?"match-node is-selected":"match-node"} onClick={()=>setSelectedMatchId(match.id)}><MatchCard match={match} athletes={athletes} allMatches={matches} athleteName={athleteName} canEdit={canEdit} busy={busy} onSave={saveWinner} onViolation={recordViolation} onEditParticipants={editMatchParticipants} onDelete={deleteManualMatch} onSaveLinks={saveMatchLinks} onMove={moveManualMatch}/></div>)}</section>):<div className="empty bracket-empty"><b>{busy?"Загружаем матчи…":"В этой сетке пока нет матчей"}</b><p>{busy?"Подождите завершения загрузки.":"Сетка создана, но матчи не найдены. Обновите данные или пересоздайте сетку после проверки состава участников."}</p></div>}</div>
+     </div>
+    </div>
+    <aside className="bracket-inspector"><div className="inspector-heading"><span>ИНСПЕКТОР</span><b>{selectedMatch?"МАТЧ №"+selectedMatch.match_no:"ВЫБЕРИТЕ МАТЧ"}</b></div>{selectedMatch?<><div className="inspector-status">{selectedMatch.status==="completed"?"Завершён":selectedMatch.status==="bye"?"Проход без боя":"Ожидает проведения"}</div><div className="inspector-athlete"><small>СПОРТСМЕН А</small><b>{athleteName(selectedMatch.athlete_a_id)}</b><strong>{selectedMatch.score_a??"—"}</strong></div><div className="inspector-athlete"><small>СПОРТСМЕН Б</small><b>{athleteName(selectedMatch.athlete_b_id)}</b><strong>{selectedMatch.score_b??"—"}</strong></div><div className="inspector-meta"><span>Раунд</span><b>{selectedMatch.round_no}</b><span>Победитель</span><b>{selectedMatch.winner_id?athleteName(selectedMatch.winner_id):"Не определён"}</b><span>Связь победителя</span><b>{selectedMatch.next_match_id?"Матч "+(matches.find(m=>m.id===selectedMatch.next_match_id)?.match_no??"—"):"Не назначена"}</b><span>Связь проигравшего</span><b>{selectedMatch.loser_next_match_id?"Матч "+(matches.find(m=>m.id===selectedMatch.loser_next_match_id)?.match_no??"—"):"Не назначена"}</b></div><button className="secondary inspector-clear" onClick={()=>setSelectedMatchId("")}>Снять выделение</button><p className="inspector-hint">Для изменения участников, результата и связей используйте карточку матча на рабочем поле.</p></>:<><div className="mini-map"><div className="mini-map-columns">{rounds.map(round=><div key={round}>{matches.filter(m=>m.round_no===round).map(m=><i key={m.id}/>)}</div>)}</div></div><p className="inspector-hint">Нажмите на карточку матча, чтобы открыть его свойства. Перетаскивайте пустое поле для перемещения схемы. Ctrl + колесо мыши — масштаб.</p></>}</aside>
+   </div>
+  </div>}
  </section>;
 }
 function MatchCard({match,athletes,allMatches,athleteName,canEdit,busy,onSave,onViolation,onEditParticipants,onDelete,onSaveLinks,onMove}:{match:Match;athletes:Athlete[];allMatches:Match[];athleteName:(id:string|null)=>string;canEdit:boolean;busy:boolean;onSave:(m:Match,w:string,a:string,b:string)=>void;onViolation:(m:Match,side:"a"|"b",kind:"foul"|"remark")=>void;onEditParticipants:(m:Match,a:string,b:string)=>void;onDelete:(m:Match)=>void;onSaveLinks:(m:Match,n:string,ns:"athlete_a_id"|"athlete_b_id",l:string,ls:"athlete_a_id"|"athlete_b_id")=>void;onMove:(m:Match,r:number,i:number)=>void}){
