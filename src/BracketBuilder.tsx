@@ -185,8 +185,8 @@ export default function BracketBuilder({client,canEdit,onMessage,initialBracketI
   setSelectedAthletes(prev=>{const next=[...prev];const to=index+delta;if(to<0||to>=next.length)return prev;[next[index],next[to]]=[next[to],next[index]];return next});
  }
  async function createBracket(){
-  if(!canEdit||!category||participants.length<2){onMessage("Выберите категорию и минимум двух допущенных спортсменов.");return}
-  if(format==="double"&&participants.length<3){onMessage("Для двойного выбывания нужно минимум 3 спортсмена.");return}
+  if(!canEdit||!category||selectedAthletes.length<2){onMessage("Выберите категорию и минимум двух допущенных спортсменов.");return}
+  if(format==="double"&&selectedAthletes.length<3){onMessage("Для двойного выбывания нужно минимум 3 спортсмена.");return}
   const participants=[...selectedAthletes];
   if(drawMode==="automatic"){
    for(let i=participants.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[participants[i],participants[j]]=[participants[j],participants[i]];}
@@ -198,7 +198,7 @@ export default function BracketBuilder({client,canEdit,onMessage,initialBracketI
   let rows:any[]=[];
   if(format==="rr"){
    let n=1;
-   for(let i=0;i<participants.length;i++)for(let j=i+1;j<participants.length;j++)rows.push({bracket_id:created.id,round_no:1,match_no:n++,athlete_a_id:participants[i],athlete_b_id:selectedAthletes[j],bracket_side:"winners"});
+   for(let i=0;i<participants.length;i++)for(let j=i+1;j<participants.length;j++)rows.push({bracket_id:created.id,round_no:1,match_no:n++,athlete_a_id:participants[i],athlete_b_id:participants[j],bracket_side:"winners"});
   }else{
    const size=2**Math.ceil(Math.log2(participants.length));
    const wbRounds=Math.log2(size);
