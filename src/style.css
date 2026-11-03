@@ -168,7 +168,7 @@ input:focus,select:focus{border-color:#d5d8d4;box-shadow:0 0 0 2px #ffffff12}
 .bracket-canvas-stage .bracket-round>h3{font:600 11px Oswald,sans-serif;letter-spacing:1px;text-transform:uppercase;color:#aeb4af;margin:0 0 15px;padding:0 8px 10px;border-bottom:1px solid #3c413e}
 .bracket-connectors{position:absolute;z-index:0;left:24px;top:18px;overflow:visible;pointer-events:none}
 .connector-path{fill:none;stroke:#626a65;stroke-width:1.7;opacity:.72}
-.connector-path.is-complete{stroke:#d3d8d2;stroke-width:2.1;opacity:.95}
+.connector-path.is-complete{stroke:#d3d8d2;stroke-width:2.1;opacity:.95}.connector-path.is-loser{stroke:#929a94;stroke-width:1.5;stroke-dasharray:5 5;opacity:.82}
 .match-node{position:relative;margin:0 0 18px;padding:2px;border:1px solid transparent;border-radius:4px;z-index:1}
 .match-node.is-selected{border-color:#d6dad5;background:#ffffff08;box-shadow:0 0 0 2px #ffffff12}
 .match-node .match-card{position:relative;z-index:2;box-shadow:0 8px 20px #0008}
