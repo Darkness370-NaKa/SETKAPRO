@@ -9,7 +9,8 @@ type Match = { id:string; round_no:number; match_no:number; athlete_a_id:string|
 type Bracket = { id:string; name:string; category_id:string; format:string };
 type MatchEvent = { id:string; match_id:string; action:string; old_data:any; new_data:any; changed_at:string; changed_by:string|null };
 
-export default function BracketBuilder({client,canEdit,onMessage,initialBracketId,onExit,onOpenEditor}:{client:any;canEdit:boolean;onMessage:(s:string)=>void;initialBracketId?:string;onExit?:()=>void;onOpenEditor?:(id:string)=>void}) {
+export default function BracketBuilder({client,canEdit,canManage=canEdit,onMessage,initialBracketId,onExit,onOpenEditor}:{client:any;canEdit:boolean;canManage?:boolean;onMessage:(s:string)=>void;initialBracketId?:string;onExit?:()=>void;onOpenEditor?:(id:string)=>void}) {
+ const canManageStructure=canManage;
  const [categories,setCategories]=useState<Category[]>([]);
  const [athletes,setAthletes]=useState<Athlete[]>([]);
  const [registrations,setRegistrations]=useState<Registration[]>([]);
@@ -155,10 +156,10 @@ export default function BracketBuilder({client,canEdit,onMessage,initialBracketI
   return null;
  }
  function shuffleAthletes(){setSelectedAthletes(prev=>{const next=[...prev];for(let i=next.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[next[i],next[j]]=[next[j],next[i]]}return next})}
- async function archiveBracket(id:string){if(!canEdit||!confirm("Переместить сетку в корзину? Матчи и результаты сохранятся."))return;const {error}=await client.from("brackets").update({archived_at:new Date().toISOString()}).eq("id",id);if(error){onMessage(error.message);return}if(selectedBracket===id){setSelectedBracket("");setMatches([])}onMessage("Сетка перемещена в корзину.");await reload()}
- async function restoreBracket(id:string){const {error}=await client.from("brackets").update({archived_at:null}).eq("id",id);if(error){onMessage(error.message);return}onMessage("Сетка восстановлена.");await reload()}
+ async function archiveBracket(id:string){if(!canManageStructure||!confirm("Переместить сетку в корзину? Матчи и результаты сохранятся."))return;const {error}=await client.from("brackets").update({archived_at:new Date().toISOString()}).eq("id",id);if(error){onMessage(error.message);return}if(selectedBracket===id){setSelectedBracket("");setMatches([])}onMessage("Сетка перемещена в корзину.");await reload()}
+ async function restoreBracket(id:string){if(!canManageStructure)return;const {error}=await client.from("brackets").update({archived_at:null}).eq("id",id);if(error){onMessage(error.message);return}onMessage("Сетка восстановлена.");await reload()}
  async function duplicateBracket(id:string){
-  if(!canEdit)return;
+  if(!canManageStructure)return;
   const source=brackets.find(b=>b.id===id);
   if(!source)return;
   if(!confirm("Создать копию сетки? Участники и структура сохранятся, результаты и нарушения будут очищены."))return;
@@ -184,7 +185,7 @@ export default function BracketBuilder({client,canEdit,onMessage,initialBracketI
   setSelectedAthletes(prev=>{const next=[...prev];const to=index+delta;if(to<0||to>=next.length)return prev;[next[index],next[to]]=[next[to],next[index]];return next});
  }
  async function createBracket(){
-  if(!canEdit||!category||selectedAthletes.length<2){onMessage("Выберите категорию и минимум двух допущенных спортсменов.");return}
+  if(!canManageStructure||!category||selectedAthletes.length<2){onMessage("Выберите категорию и минимум двух допущенных спортсменов.");return}
   setBusy(true);
   const name=bracketName.trim()||category.name+" — "+(format==="single"?"олимпийская сетка":format==="double"?"двойное выбывание":"круговая система");
   const {data:created,error}=await client.from("brackets").insert({category_id:category.id,name,format}).select("*").single();
@@ -327,7 +328,7 @@ export default function BracketBuilder({client,canEdit,onMessage,initialBracketI
   setBusy(false);
  }
  async function addManualMatch(roundNo?:number){
-  if(!canEdit||!selectedBracket)return;
+  if(!canManageStructure||!selectedBracket)return;
   const round=roundNo??(matches.length?Math.max(...matches.map(m=>m.round_no)):1);
   const matchNo=Math.max(0,...matches.filter(m=>m.round_no===round).map(m=>m.match_no))+1;
   setBusy(true);
@@ -384,7 +385,7 @@ export default function BracketBuilder({client,canEdit,onMessage,initialBracketI
   await openBracket(selectedBracket);
  }
  async function deleteManualMatch(match:Match){
-  if(!canEdit||!selectedBracket||!confirm("Удалить этот блок матча?"))return;
+  if(!canManageStructure||!selectedBracket||!confirm("Удалить этот блок матча?"))return;
   setBusy(true);
   const {error}=await client.from("matches").delete().eq("id",match.id);
   if(error)onMessage("Не удалось удалить блок: "+error.message);else onMessage("Блок матча удалён.");
@@ -456,7 +457,7 @@ export default function BracketBuilder({client,canEdit,onMessage,initialBracketI
  return <section className={initialBracketId?"bracket-editor-page":"panel"}>
   {initialBracketId&&<div className="editor-topbar"><button className="secondary" onClick={onExit}>← К списку сеток</button><span>SETKA PRO / РЕДАКТОР СЕТКИ</span></div>}
   <div className="section-title"><div><h2>{initialBracketId?(brackets.find(b=>b.id===selectedBracket)?.name||"Редактор сетки"):"Конструктор турнирных сеток"}</h2><p>{initialBracketId?"Управление матчами, результатами и ходом соревнования.":"Состав участников берётся из допущенных регистраций выбранной весовой категории."}</p></div><button className="secondary" onClick={()=>initialBracketId?void openBracket(selectedBracket):void reload()} disabled={busy}><RefreshCw size={15}/> Обновить</button></div>
-  {!initialBracketId&&canEdit&&<div className="form-grid management-form">
+  {!initialBracketId&&canManageStructure&&<div className="form-grid management-form">
    <label className="full">Весовая категория<select value={selectedCategory} onChange={e=>{setSelectedCategory(e.target.value);setSelectedAthletes([])}}><option value="">Выберите категорию</option>{categories.map(c=><option key={c.id} value={c.id}>{c.name} · {c.gender==="male"?"мужчины":c.gender==="female"?"женщины":"открытая"} · {c.hand==="right"?"правая":c.hand==="left"?"левая":"обе"} рука</option>)}</select></label>
    <label>Формат сетки<select value={format} onChange={e=>setFormat(e.target.value as "single"|"double"|"rr")}><option value="single">Олимпийская — одно поражение</option><option value="double">Двойное выбывание — два поражения</option><option value="rr">Круговая — каждый с каждым</option></select></label>
    <label>Название сетки<input value={bracketName} onChange={e=>setBracketName(e.target.value)} placeholder="Автоматически по категории"/></label>
@@ -466,7 +467,7 @@ export default function BracketBuilder({client,canEdit,onMessage,initialBracketI
    <div className="full form-actions"><button className="primary" disabled={busy||selectedAthletes.length<2||!selectedCategory} onClick={()=>void createBracket()}><Plus size={16}/> Построить сетку</button></div>
   </div>}
   {!initialBracketId&&<><div className="section-title" style={{marginTop:24}}><div><h2>Сохранённые сетки</h2><p>Откройте сетку, чтобы вносить результаты и продвигать победителей.</p></div></div>
-  <div className="application-list">{brackets.map(b=><div className={selectedBracket===b.id?"application-row selected":"application-row"} key={b.id}><button type="button" className="app-main" onClick={()=>void openBracket(b.id)}><b>{b.name}</b><span>{categories.find(c=>c.id===b.category_id)?.name||"Категория"} · {b.format==="rr"?"Круговая система":b.format==="double"?"Двойное выбывание":"Олимпийская"}</span></button><Trophy size={18}/>{canEdit&&<><button type="button" className="icon-btn" title="Дублировать сетку" onClick={()=>void duplicateBracket(b.id)}><Plus size={15}/></button><button type="button" className="icon-btn" title="В корзину" onClick={()=>void archiveBracket(b.id)}><Trash2 size={15}/></button></>}</div>)}{!brackets.length&&<div className="empty"><b>Сеток пока нет</b><p>Создайте первую сетку выше.</p></div>}</div>
+  <div className="application-list">{brackets.map(b=><div className={selectedBracket===b.id?"application-row selected":"application-row"} key={b.id}><button type="button" className="app-main" onClick={()=>void openBracket(b.id)}><b>{b.name}</b><span>{categories.find(c=>c.id===b.category_id)?.name||"Категория"} · {b.format==="rr"?"Круговая система":b.format==="double"?"Двойное выбывание":"Олимпийская"}</span></button><Trophy size={18}/>{canManageStructure&&<><button type="button" className="icon-btn" title="Дублировать сетку" onClick={()=>void duplicateBracket(b.id)}><Plus size={15}/></button><button type="button" className="icon-btn" title="В корзину" onClick={()=>void archiveBracket(b.id)}><Trash2 size={15}/></button></>}</div>)}{!brackets.length&&<div className="empty"><b>Сеток пока нет</b><p>Создайте первую сетку выше.</p></div>}</div>
   <div className="match-history-tools"><button className="secondary" type="button" onClick={()=>setShowTrash(v=>!v)}><Trash2 size={14}/> {showTrash?"Скрыть корзину":"Корзина ("+archivedBrackets.length+")"}</button></div>{showTrash&&<section className="match-history"><h3>Корзина сеток</h3>{archivedBrackets.map(b=><div className="match-history-row" key={b.id}><b>{b.name}</b><span>Архивная сетка</span><button className="secondary" type="button" onClick={()=>void restoreBracket(b.id)}><RotateCcw size={14}/> Восстановить</button></div>)}{!archivedBrackets.length&&<p>Корзина пуста.</p>}</section>}
   </>}\n  {selectedBracket&&canEdit&&<div className="match-history-tools manual-builder-tools"><button type="button" className="primary" onClick={()=>void addManualMatch()} disabled={busy}><Plus size={14}/> Добавить блок матча</button><button type="button" className="secondary" onClick={()=>void addManualRound()} disabled={busy}><Plus size={14}/> Добавить раунд</button></div>}
   {selectedBracket&&<div className="match-history-tools"><button type="button" className="secondary" onClick={()=>setZoom(v=>Math.max(.6,v-.1))}><ZoomOut size={14}/></button><span className="zoom-label">{Math.round(zoom*100)}%</span><button type="button" className="secondary" onClick={()=>setZoom(v=>Math.min(1.6,v+.1))}><ZoomIn size={14}/></button><button type="button" className="secondary" onClick={exportBracketSvg}><ImageIcon size={14}/> SVG</button><button type="button" className="secondary" onClick={()=>void exportBracketPng()}><ImageIcon size={14}/> PNG</button><button type="button" className="secondary" onClick={()=>window.print()}><Printer size={14}/> Печать</button><button type="button" className="secondary" onClick={()=>setShowHistory(v=>!v)}><RefreshCw size={14}/>{showHistory?"Скрыть историю":"История изменений ("+matchEvents.length+")"}</button></div>}
