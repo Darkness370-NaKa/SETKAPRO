@@ -2,7 +2,6 @@
 -- This migration intentionally replaces the broad policies from 004.
 -- It does not alter application data or table structure.
 
-begin;
 
 -- Remove the existing per-table policies so permissive policies cannot OR
 -- together and silently preserve broader access.
@@ -151,7 +150,7 @@ begin
   if public.has_any_role(array['CHIEF_JUDGE','JUDGE'])
      and not public.has_any_role(array['SUPER_ADMIN','ADMIN','ORGANIZER','SECRETARY']) then
     if (to_jsonb(new) - array[
-          'score_a','score_b','winner_id','status',
+          'score_a','score_b','winner_id','status','athlete_a_id','athlete_b_id',
           'fouls_a','fouls_b','remarks_a','remarks_b','finish_reason'
         ]) is distinct from
        (to_jsonb(old) - array[
@@ -162,6 +161,68 @@ begin
         using errcode = '42501';
     end if;
   end if;
+
+  -- Participant slots may only be populated by an upstream match result
+  -- (or by the grand-final reset rule), preserving automatic progression.
+  if public.has_any_role(array['CHIEF_JUDGE','JUDGE'])
+     and not public.has_any_role(array['SUPER_ADMIN','ADMIN','ORGANIZER','SECRETARY']) then
+    if new.athlete_a_id is not null
+       and new.athlete_a_id is distinct from old.athlete_a_id
+       and not exists (
+         select 1 from public.matches source
+          where source.bracket_id = new.bracket_id
+            and (
+              (source.next_match_id = new.id
+               and source.next_slot = 'athlete_a_id'
+               and source.winner_id = new.athlete_a_id)
+              or
+              (source.loser_next_match_id = new.id
+               and source.loser_next_slot = 'athlete_a_id'
+               and source.winner_id is not null
+               and (case when source.winner_id = source.athlete_a_id
+                         then source.athlete_b_id else source.athlete_a_id end) = new.athlete_a_id)
+              or
+              (new.bracket_side = 'reset_final'
+               and source.bracket_side = 'grand_final'
+               and source.status = 'completed'
+               and source.winner_id = source.athlete_b_id
+               and new.athlete_a_id = source.athlete_a_id
+               and new.athlete_b_id = source.athlete_b_id)
+            )
+       ) then
+      raise exception 'Слот А можно заполнить только по результату связанного матча'
+        using errcode = '42501';
+    end if;
+
+    if new.athlete_b_id is not null
+       and new.athlete_b_id is distinct from old.athlete_b_id
+       and not exists (
+         select 1 from public.matches source
+          where source.bracket_id = new.bracket_id
+            and (
+              (source.next_match_id = new.id
+               and source.next_slot = 'athlete_b_id'
+               and source.winner_id = new.athlete_b_id)
+              or
+              (source.loser_next_match_id = new.id
+               and source.loser_next_slot = 'athlete_b_id'
+               and source.winner_id is not null
+               and (case when source.winner_id = source.athlete_a_id
+                         then source.athlete_b_id else source.athlete_a_id end) = new.athlete_b_id)
+              or
+              (new.bracket_side = 'reset_final'
+               and source.bracket_side = 'grand_final'
+               and source.status = 'completed'
+               and source.winner_id = source.athlete_b_id
+               and new.athlete_a_id = source.athlete_a_id
+               and new.athlete_b_id = source.athlete_b_id)
+            )
+       ) then
+      raise exception 'Слот Б можно заполнить только по результату связанного матча'
+        using errcode = '42501';
+    end if;
+  end if;
+
   return new;
 end;
 $function$;
@@ -265,4 +326,3 @@ begin
 end;
 $function$;
 
-commit;
