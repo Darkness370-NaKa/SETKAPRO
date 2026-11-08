@@ -152,3 +152,11 @@ input:focus,select:focus{border-color:#d5d8d4;box-shadow:0 0 0 2px #ffffff12}
 .auth-visual .brand-mark{width:92px;height:92px;flex-basis:92px}
 .setup-page>.brand .brand-mark{width:72px;height:72px;flex-basis:72px}
 .brand{gap:12px}
+
+
+/* Bracket workspace responsive layout */
+.bracket-workspace{margin-top:14px;border:1px solid #3e4240;background:#0a0c0c}
+.bracket-canvas-toolbar{min-height:48px;padding:8px 12px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;border-bottom:1px solid #353937;background:#171a19}
+.bracket-workspace-body{display:grid;grid-template-columns:minmax(0,1fr) 245px;min-height:560px}
+.bracket-inspector{border-left:1px solid #393e3b;background:#171a19;padding:16px;min-width:0}
+@media(max-width:980px){.bracket-workspace-body{grid-template-columns:minmax(0,1fr)}.bracket-inspector{border-left:0;border-top:1px solid #393e3b}}
