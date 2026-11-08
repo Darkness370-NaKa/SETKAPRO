@@ -154,7 +154,7 @@ begin
           'fouls_a','fouls_b','remarks_a','remarks_b','finish_reason'
         ]) is distinct from
        (to_jsonb(old) - array[
-          'score_a','score_b','winner_id','status',
+          'score_a','score_b','winner_id','status','athlete_a_id','athlete_b_id',
           'fouls_a','fouls_b','remarks_a','remarks_b','finish_reason'
         ]) then
       raise exception 'Судья может изменять только счёт, результат и нарушения матча'
