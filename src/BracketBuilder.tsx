@@ -9,7 +9,8 @@ type Match = { id:string; round_no:number; match_no:number; athlete_a_id:string|
 type Bracket = { id:string; name:string; category_id:string; format:string };
 type MatchEvent = { id:string; match_id:string; action:string; old_data:any; new_data:any; changed_at:string; changed_by:string|null };
 
-export default function BracketBuilder({client,canEdit,canManage=canEdit,onMessage,initialBracketId,onExit,onOpenEditor}:{client:any;canEdit:boolean;canManage?:boolean;onMessage:(s:string)=>void;initialBracketId?:string;onExit?:()=>void;onOpenEditor?:(id:string)=>void}) {\n const canManageStructure=canManage;
+export default function BracketBuilder({client,canEdit,canManage=canEdit,onMessage,initialBracketId,onExit,onOpenEditor}:{client:any;canEdit:boolean;canManage?:boolean;onMessage:(s:string)=>void;initialBracketId?:string;onExit?:()=>void;onOpenEditor?:(id:string)=>void}) {
+ const canManageStructure=canManage;
  const [categories,setCategories]=useState<Category[]>([]);
  const [athletes,setAthletes]=useState<Athlete[]>([]);
  const [registrations,setRegistrations]=useState<Registration[]>([]);
