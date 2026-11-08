@@ -362,7 +362,7 @@ export default function BracketBuilder({client,canEdit,canManage=canEdit,onMessa
   await openBracket(selectedBracket);setBusy(false);
  }
  async function moveManualMatch(match:Match,targetRound:number,targetIndex:number){
-  if(!canEdit||!selectedBracket||busy)return;
+  if(!canManageStructure||!selectedBracket||busy)return;
   setBusy(true);
   const {error}=await client.rpc("move_bracket_match",{
    p_match_id:match.id,p_target_round:targetRound,p_target_index:targetIndex
