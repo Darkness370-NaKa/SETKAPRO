@@ -237,3 +237,108 @@ input:focus,select:focus{border-color:var(--user-accent,#c5c5bd)}
 :root[data-theme="light"] .match-athlete{color:#20252a}
 :root[data-theme="light"] .match-links{background:#f5f7f9;border-color:#d2d8de}
 @media(prefers-color-scheme:light){:root[data-theme="system"]{color:#20252a;background:#f2f4f6;--bg:#f2f4f6;--panel:#fff;--panel2:#e9edf1;--line:#cbd2d9;--muted:#5e6974}:root[data-theme="system"] body{background:#f2f4f6;color:#20252a}:root[data-theme="system"] .topbar,:root[data-theme="system"] .sidebar{background:#f8fafb;color:#20252a}:root[data-theme="system"] .panel,:root[data-theme="system"] .tournament-card,:root[data-theme="system"] .dashboard-stats article{background:#fff;color:#20252a;border-color:#cbd2d9}:root[data-theme="system"] .brand b,:root[data-theme="system"] .page-head h1,:root[data-theme="system"] .section-title h2,:root[data-theme="system"] .tournament-card h2{color:#20252a}:root[data-theme="system"] input,:root[data-theme="system"] select{background:#fff;color:#20252a}:root[data-theme="system"] .nav-item{color:#46515c}:root[data-theme="system"] .nav-item.active{background:#e4e9ee;color:#171c21}}
+
+
+/* Refined APM brand balance: modern, calm surfaces with a monochrome identity */
+:root{
+  --bg:#090a0a;
+  --panel:#121414;
+  --panel2:#191c1b;
+  --line:#343a37;
+  --muted:#9ba29d;
+  --accent:var(--user-accent,#c5c9c6);
+}
+body{
+  background-image:
+    radial-gradient(ellipse at 50% -24%,rgba(220,224,220,.075),transparent 48%),
+    linear-gradient(180deg,#0d0f0e 0%,#090a0a 62%,#080909 100%);
+}
+.topbar{
+  background:rgba(10,12,11,.9);
+  border-bottom:1px solid rgba(210,216,211,.16);
+  box-shadow:0 5px 24px rgba(0,0,0,.24);
+  backdrop-filter:blur(16px);
+}
+.sidebar{
+  background:linear-gradient(180deg,rgba(16,19,18,.98),rgba(11,13,12,.98));
+  border-color:rgba(210,216,211,.12);
+}
+.nav-item{
+  border-radius:9px;
+  transition:background .18s ease,color .18s ease,transform .18s ease;
+}
+.nav-item:hover{transform:translateX(2px)}
+.nav-item:hover,.nav-item.active{
+  background:linear-gradient(90deg,rgba(218,224,219,.11),rgba(218,224,219,.035));
+}
+.nav-item.active{box-shadow:inset 3px 0 var(--user-accent,#c5c9c6)}
+.panel,.tournament-card,.dashboard-stats article{
+  background:linear-gradient(145deg,rgba(25,29,27,.98),rgba(16,19,18,.98));
+  border:1px solid rgba(205,213,207,.15);
+  border-radius:14px;
+  box-shadow:0 12px 32px rgba(0,0,0,.2),inset 0 1px rgba(255,255,255,.035);
+}
+.tournament-card:after{opacity:.08}
+.tournament-card h2{letter-spacing:.25px}
+.primary{
+  border-radius:9px;
+  background:linear-gradient(180deg,#e2e5e2,#bdc3be);
+  border:1px solid #e9ece9;
+  color:#111513;
+  box-shadow:0 3px 12px rgba(0,0,0,.2);
+  transition:filter .18s ease,transform .18s ease;
+}
+.primary:hover{filter:brightness(1.07);transform:translateY(-1px)}
+.secondary,.icon-btn,.design-choice{
+  border-radius:9px;
+  transition:border-color .18s ease,background .18s ease,transform .18s ease;
+}
+.secondary:hover,.icon-btn:hover,.design-choice:hover{transform:translateY(-1px)}
+input,select,textarea{
+  border-radius:9px;
+  background:#0d100f;
+  border-color:#3c4540;
+}
+input:focus,select:focus,textarea:focus{
+  border-color:#bfc7c1;
+  box-shadow:0 0 0 3px rgba(191,199,193,.12);
+}
+.live-pill,.tag,.tag.amber,.status,.status.approved,.status.rejected{
+  border-radius:999px;
+}
+.match-card,.match-history,.management-form,.match-links{
+  border-radius:10px;
+}
+.bracket-workspace{
+  border-radius:14px;
+  overflow:hidden;
+  border-color:rgba(205,213,207,.17);
+}
+.bracket-canvas-toolbar,.bracket-inspector{
+  background:linear-gradient(180deg,#191e1b,#121614);
+}
+.bracket-workspace .bracket-viewport{
+  background-color:#0c100e;
+  background-image:radial-gradient(rgba(176,187,179,.22) 1px,transparent 1px);
+}
+.match-node.is-selected{
+  border-color:#cbd2cc;
+  background:rgba(220,228,221,.055);
+  box-shadow:0 0 0 2px rgba(220,228,221,.08);
+}
+.design-settings{max-width:940px}
+.design-setting-group{padding:20px 0;border-top-color:rgba(205,213,207,.12)}
+.design-choice{border-radius:9px;padding:11px 16px}
+.design-choice.selected{
+  border-color:#c5c9c6;
+  box-shadow:inset 0 0 0 1px rgba(197,201,198,.45);
+  background:rgba(197,201,198,.09);
+}
+.design-color{width:36px;height:36px}
+.design-preview{border-radius:12px;background:linear-gradient(145deg,#1c211e,#121614)}
+.auth-card,.setup-card{border-radius:16px}
+@media(max-width:760px){
+  .topbar{background:rgba(10,12,11,.96)}
+  .nav-item:hover{transform:none}
+  .panel,.tournament-card,.dashboard-stats article{border-radius:12px}
+}
