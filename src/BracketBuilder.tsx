@@ -341,7 +341,7 @@ export default function BracketBuilder({client,canEdit,canManage=canEdit,onMessa
   await addManualMatch(next);
  }
  async function editMatchParticipants(match:Match,aId:string,bId:string){
-  if(!canEdit||!selectedBracket)return;
+  if(!canManageStructure||!selectedBracket)return;
   if(aId&&aId===bId){onMessage("Один спортсмен не может занимать оба места в матче.");return}
   const duplicate=matches.find(m=>m.id!==match.id&&[m.athlete_a_id,m.athlete_b_id].some(id=>id&&(id===aId||id===bId)));
   if(duplicate){onMessage("Этот спортсмен уже назначен в другой блок этой сетки. Сначала освободите его там.");return}
@@ -373,7 +373,7 @@ export default function BracketBuilder({client,canEdit,canManage=canEdit,onMessa
   setBusy(false);
  }
  async function saveMatchLinks(match:Match,nextId:string,nextSlot:"athlete_a_id"|"athlete_b_id",loserId:string,loserSlot:"athlete_a_id"|"athlete_b_id"){
-  if(!canEdit||!selectedBracket)return;
+  if(!canManageStructure||!selectedBracket)return;
   if(nextId===match.id||loserId===match.id){onMessage("Матч не может ссылаться сам на себя.");return}
   if(nextId&&nextId===loserId&&nextSlot===loserSlot){onMessage("Победитель и проигравший не могут попасть в один и тот же слот следующего матча.");return}
   const graph=new Map(matches.map(m=>[m.id,[m.next_match_id,m.loser_next_match_id].filter(Boolean) as string[]]));
