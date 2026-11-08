@@ -185,8 +185,73 @@ export default function BracketBuilder({client,canEdit,canManage=canEdit,onMessa
   await resolveAutomaticByes(copy.id);
   onMessage("Копия сетки создана без результатов.");await reload();await openBracket(copy.id);
  }
- async function exportBracketPng(){const node=document.querySelector(".bracket-rounds");if(!node){onMessage("Сначала откройте сетку.");return}const markup=node.outerHTML.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1200"><foreignObject width="100%" height="100%"><div xmlns="http://www.w3.org/1999/xhtml"><style>body{background:#0d1014;color:#edf1f5;font-family:Arial}.bracket-rounds{display:flex;gap:18px;align-items:flex-start}.bracket-round{min-width:240px}.match-card{background:#151a20;border:1px solid #2b343e;border-radius:8px;padding:12px;margin:10px 0}.match-athlete{padding:8px;border-bottom:1px solid #333}.match-number{color:#d99b42;font-weight:bold}</style>${markup}</div></foreignObject></svg>`;const url=URL.createObjectURL(new Blob([svg],{type:"image/svg+xml"}));const img=new Image();img.onload=()=>{const canvas=document.createElement("canvas");canvas.width=1800;canvas.height=1200;const ctx=canvas.getContext("2d");if(ctx){ctx.drawImage(img,0,0);canvas.toBlob(blob=>{if(blob){const pngUrl=URL.createObjectURL(blob);const a=document.createElement("a");a.href=pngUrl;a.download="setka.png";a.click();URL.revokeObjectURL(pngUrl)}URL.revokeObjectURL(url)},"image/png")}};img.onerror=()=>{URL.revokeObjectURL(url);onMessage("Не удалось сформировать PNG в этом браузере.")};img.src=url}
- function exportBracketSvg(){const node=document.querySelector(".bracket-rounds");if(!node){onMessage("Сначала откройте сетку.");return}const html=node.outerHTML.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="1000"><foreignObject width="100%" height="100%"><div xmlns="http://www.w3.org/1999/xhtml"><style>body{background:#0d1014;color:#edf1f5;font-family:Arial}.bracket-rounds{display:flex;gap:18px;align-items:flex-start}.bracket-round{min-width:240px}.match-card{background:#151a20;border:1px solid #2b343e;border-radius:8px;padding:12px;margin:10px 0}.match-athlete{padding:8px;border-bottom:1px solid #333}.match-number{color:#d99b42;font-weight:bold}</style>${html}</div></foreignObject></svg>`;const blob=new Blob([svg],{type:"image/svg+xml"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download="setka.svg";a.click();URL.revokeObjectURL(url)}
+ function buildBracketSvgMarkup():string|null{
+  if(!matches.length)return null;
+  const orderedRounds=[...new Set(matches.map(m=>m.round_no))].sort((a,b)=>a-b);
+  const byRound=new Map(orderedRounds.map(round=>[round,matches.filter(m=>m.round_no===round).sort((a,b)=>a.match_no-b.match_no)]));
+  const cardWidth=270,cardHeight=112,columnGap=42,rowGap=28,left=34,top=72;
+  const width=Math.max(720,left*2+orderedRounds.length*(cardWidth+columnGap)-columnGap);
+  const maxRows=Math.max(1,...[...byRound.values()].map(items=>items.length));
+  const height=top+maxRows*(cardHeight+rowGap)+36;
+  const esc=(value:unknown)=>String(value??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&apos;");
+  const positions=new Map<string,{x:number;y:number}>();
+  orderedRounds.forEach((round,column)=>(byRound.get(round)||[]).forEach((match,index)=>positions.set(match.id,{x:left+column*(cardWidth+columnGap),y:top+index*(cardHeight+rowGap)})));
+  const links=matches.flatMap(match=>{
+   const from=positions.get(match.id);if(!from)return [];
+   return ([{id:match.next_match_id,kind:"winner"},{id:match.loser_next_match_id,kind:"loser"}] as const).flatMap(link=>{
+    if(!link.id)return [];const to=positions.get(link.id);if(!to)return [];
+    const x1=from.x+cardWidth,y1=from.y+cardHeight/2,x2=to.x,y2=to.y+cardHeight/2,mid=(x1+x2)/2;
+    return [`<path d="M ${x1} ${y1} C ${mid} ${y1}, ${mid} ${y2}, ${x2} ${y2}" fill="none" stroke="${link.kind==="loser"?"#929a94":"#68716b"}" stroke-width="2" ${link.kind==="loser"?'stroke-dasharray="6 5"':""}/>`];
+   });
+  }).join("");
+  const cards=orderedRounds.map((round,column)=>{
+   const roundMatches=byRound.get(round)||[];
+   const heading=roundTitle(round);
+   return `<text x="${left+column*(cardWidth+columnGap)}" y="38" fill="#c5cbc6" font-size="14" font-weight="700">${esc(heading)}</text>`+
+    roundMatches.map(match=>{
+     const p=positions.get(match.id)!;
+     const status=match.status==="completed"?"ЗАВЕРШЁН":match.status==="bye"?"ПРОХОД БЕЗ БОЯ":"ОЖИДАЕТ";
+     const a=athleteName(match.athlete_a_id),b=athleteName(match.athlete_b_id);
+     const winnerA=match.winner_id===match.athlete_a_id&&!!match.winner_id,winnerB=match.winner_id===match.athlete_b_id&&!!match.winner_id;
+     return `<g><rect x="${p.x}" y="${p.y}" width="${cardWidth}" height="${cardHeight}" rx="5" fill="#171a19" stroke="#59615c"/>
+      <text x="${p.x+13}" y="${p.y+19}" fill="#aeb6b0" font-size="10" font-weight="700">МАТЧ ${esc(match.match_no)} · ${esc(status)}</text>
+      <line x1="${p.x+10}" y1="${p.y+29}" x2="${p.x+cardWidth-10}" y2="${p.y+29}" stroke="#3b423d"/>
+      <text x="${p.x+13}" y="${p.y+53}" fill="${winnerA?"#f1f3ef":"#c2c8c3"}" font-size="13" font-weight="${winnerA?"700":"400"}">${esc(a.slice(0,27))}</text>
+      <text x="${p.x+cardWidth-14}" y="${p.y+53}" fill="#f1f3ef" font-size="13" text-anchor="end">${esc(match.score_a??"—")}</text>
+      <line x1="${p.x+10}" y1="${p.y+64}" x2="${p.x+cardWidth-10}" y2="${p.y+64}" stroke="#303733"/>
+      <text x="${p.x+13}" y="${p.y+88}" fill="${winnerB?"#f1f3ef":"#c2c8c3"}" font-size="13" font-weight="${winnerB?"700":"400"}">${esc(b.slice(0,27))}</text>
+      <text x="${p.x+cardWidth-14}" y="${p.y+88}" fill="#f1f3ef" font-size="13" text-anchor="end">${esc(match.score_b??"—")}</text></g>`;
+    }).join("");
+  }).join("");
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}"><rect width="100%" height="100%" fill="#0b0d0c"/>${links}${cards}</svg>`;
+ }
+ function downloadBlob(blob:Blob,filename:string){
+  const url=URL.createObjectURL(blob),link=document.createElement("a");
+  link.href=url;link.download=filename;document.body.appendChild(link);link.click();link.remove();
+  window.setTimeout(()=>URL.revokeObjectURL(url),1000);
+ }
+ function exportBracketSvg(){
+  const markup=buildBracketSvgMarkup();
+  if(!markup){onMessage("В открытой сетке пока нет матчей для экспорта.");return}
+  downloadBlob(new Blob([markup],{type:"image/svg+xml;charset=utf-8"}),"setka-pro-bracket.svg");
+ }
+ async function exportBracketPng(){
+  const markup=buildBracketSvgMarkup();
+  if(!markup){onMessage("В открытой сетке пока нет матчей для экспорта.");return}
+  const svgUrl=URL.createObjectURL(new Blob([markup],{type:"image/svg+xml;charset=utf-8"}));
+  const img=new Image();
+  img.onload=()=>{
+   try{
+    const scale=Math.min(2,Math.max(1,window.devicePixelRatio||1));
+    const canvas=document.createElement("canvas");canvas.width=img.naturalWidth*scale;canvas.height=img.naturalHeight*scale;
+    const ctx=canvas.getContext("2d");if(!ctx)throw new Error("Canvas недоступен");
+    ctx.scale(scale,scale);ctx.drawImage(img,0,0);
+    canvas.toBlob(blob=>{URL.revokeObjectURL(svgUrl);if(blob)downloadBlob(blob,"setka-pro-bracket.png");else onMessage("Браузер не смог сформировать PNG.")},"image/png");
+   }catch(error){URL.revokeObjectURL(svgUrl);onMessage("Не удалось сформировать PNG: "+(error instanceof Error?error.message:String(error)))}
+  };
+  img.onerror=()=>{URL.revokeObjectURL(svgUrl);onMessage("Не удалось отрисовать SVG для PNG.")};
+  img.src=svgUrl;
+ }
  function moveAthlete(index:number,delta:number){
   setSelectedAthletes(prev=>{const next=[...prev];const to=index+delta;if(to<0||to>=next.length)return prev;[next[index],next[to]]=[next[to],next[index]];return next});
  }
