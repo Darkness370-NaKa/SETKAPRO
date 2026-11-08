@@ -20,6 +20,7 @@ export default function BracketBuilder({client,canEdit,canManage=canEdit,onMessa
  const [selectedBracket,setSelectedBracket]=useState(initialBracketId||"");
  const [selectedAthletes,setSelectedAthletes]=useState<string[]>([]);
  const [format,setFormat]=useState<"single"|"double"|"rr">("single");
+ const [drawMode,setDrawMode]=useState<"automatic"|"manual">("automatic");
  const [bracketName,setBracketName]=useState("");
  const [matches,setMatches]=useState<Match[]>([]);
  const [matchEvents,setMatchEvents]=useState<MatchEvent[]>([]);
@@ -186,6 +187,9 @@ export default function BracketBuilder({client,canEdit,canManage=canEdit,onMessa
  }
  async function createBracket(){
   if(!canManageStructure||!category||selectedAthletes.length<2){onMessage("Выберите категорию и минимум двух допущенных спортсменов.");return}
+  if(format==="double"&&selectedAthletes.length<3){onMessage("Для двойного выбывания нужно минимум 3 спортсмена.");return}
+  const participants=[...selectedAthletes];
+  if(drawMode==="automatic"){for(let i=participants.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[participants[i],participants[j]]=[participants[j],participants[i]];}}
   setBusy(true);
   const name=bracketName.trim()||category.name+" — "+(format==="single"?"олимпийская сетка":format==="double"?"двойное выбывание":"круговая система");
   const {data:created,error}=await client.from("brackets").insert({category_id:category.id,name,format}).select("*").single();
@@ -193,9 +197,9 @@ export default function BracketBuilder({client,canEdit,canManage=canEdit,onMessa
   let rows:any[]=[];
   if(format==="rr"){
    let n=1;
-   for(let i=0;i<selectedAthletes.length;i++)for(let j=i+1;j<selectedAthletes.length;j++)rows.push({bracket_id:created.id,round_no:1,match_no:n++,athlete_a_id:selectedAthletes[i],athlete_b_id:selectedAthletes[j],bracket_side:"winners"});
+   for(let i=0;i<participants.length;i++)for(let j=i+1;j<participants.length;j++)rows.push({bracket_id:created.id,round_no:1,match_no:n++,athlete_a_id:participants[i],athlete_b_id:participants[j],bracket_side:"winners"});
   }else{
-   const size=2**Math.ceil(Math.log2(selectedAthletes.length));
+   const size=2**Math.ceil(Math.log2(participants.length));
    const wbRounds=Math.log2(size);
    const wb:any[][]=[];
    let seedPositions=[1,2];
@@ -205,7 +209,7 @@ export default function BracketBuilder({client,canEdit,canManage=canEdit,onMessa
    }
    // seedPositions describes the seed assigned to each visual slot.
    // Map it in slot order; inverting this array pairs the wrong seeds (e.g. 1 vs 3).
-   const seededAthletes:(string|null)[] = seedPositions.map(seed=>selectedAthletes[seed-1]||null);
+   const seededAthletes:(string|null)[] = seedPositions.map(seed=>participants[seed-1]||null);
    for(let r=1;r<=wbRounds;r++){
     const count=size/2**r;wb[r]=[];
     for(let m=1;m<=count;m++){
@@ -460,8 +464,9 @@ export default function BracketBuilder({client,canEdit,canManage=canEdit,onMessa
   {!initialBracketId&&canManageStructure&&<div className="form-grid management-form">
    <label className="full">Весовая категория<select value={selectedCategory} onChange={e=>{setSelectedCategory(e.target.value);setSelectedAthletes([])}}><option value="">Выберите категорию</option>{categories.map(c=><option key={c.id} value={c.id}>{c.name} · {c.gender==="male"?"мужчины":c.gender==="female"?"женщины":"открытая"} · {c.hand==="right"?"правая":c.hand==="left"?"левая":"обе"} рука</option>)}</select></label>
    <label>Формат сетки<select value={format} onChange={e=>setFormat(e.target.value as "single"|"double"|"rr")}><option value="single">Олимпийская — одно поражение</option><option value="double">Двойное выбывание — два поражения</option><option value="rr">Круговая — каждый с каждым</option></select></label>
+   <label>Распределение участников<select value={drawMode} onChange={e=>setDrawMode(e.target.value as "automatic"|"manual")}><option value="automatic">Автоматическая жеребьёвка</option><option value="manual">Ручной порядок посева</option></select></label>
    <label>Название сетки<input value={bracketName} onChange={e=>setBracketName(e.target.value)} placeholder="Автоматически по категории"/></label>
-   <div className="full"><b>Участники ({selectedAthletes.length} выбрано из {eligible.length})</b><button type="button" className="secondary" onClick={shuffleAthletes}><Shuffle size={14}/> Случайный посев</button><p>В список попадают только одобренные регистрации подходящей руки и пола. Если у категории задан диапазон веса, учитывается последнее взвешивание: без зафиксированного веса спортсмен не допускается. Порядок посева задаётся кнопками ↑ и ↓.</p>
+   <div className="full"><b>Участники ({selectedAthletes.length} выбрано из {eligible.length})</b><button type="button" className="secondary" onClick={shuffleAthletes}><Shuffle size={14}/> Случайный посев</button><p>В список попадают только одобренные регистрации подходящей руки и пола. Если у категории задан диапазон веса, учитывается последнее взвешивание: без зафиксированного веса спортсмен не допускается. При автоматическом режиме программа случайно распределит выбранных спортсменов. При ручном — сохранит порядок, который вы зададите кнопками ↑ и ↓.</p>
     <div className="application-list">{eligible.map(a=>{const index=selectedAthletes.indexOf(a.id);return <div className="application-row" key={a.id}><label className="check-row"><input type="checkbox" checked={index>=0} onChange={e=>setSelectedAthletes(prev=>e.target.checked?[...prev,a.id]:prev.filter(id=>id!==a.id))}/><span>{a.last_name} {a.first_name}</span></label>{index>=0&&<div className="row-actions"><span className="tag">Посев {index+1}</span><button className="icon-btn" type="button" onClick={()=>moveAthlete(index,-1)} disabled={index===0}><ArrowUp size={15}/></button><button className="icon-btn" type="button" onClick={()=>moveAthlete(index,1)} disabled={index===selectedAthletes.length-1}><ArrowDown size={15}/></button></div>}</div>})}{!eligible.length&&<div className="empty"><b>Нет допущенных спортсменов</b><p>Сначала добавьте спортсменов, зарегистрируйте их на турнир и установите статус «Допущен».</p></div>}</div>
    </div>
    <div className="full form-actions"><button className="primary" disabled={busy||selectedAthletes.length<2||!selectedCategory} onClick={()=>void createBracket()}><Plus size={16}/> Построить сетку</button></div>
