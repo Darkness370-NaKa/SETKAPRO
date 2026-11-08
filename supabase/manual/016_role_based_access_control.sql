@@ -222,24 +222,37 @@ begin
         using errcode = '42501';
     end if;
 
-    -- Clearing a participant is also a protected slot mutation. It is allowed
-    -- only when the current occupant came from this exact feeder link and the
-    -- feeder has a recorded result, or when the grand-final reset is voided
-    -- because the winners-bracket champion won the grand final.
+    -- A judge may clear a feeder-populated slot only after that feeder's
+    -- latest audited result changed away from the current occupant. The
+    -- grand-final reset may also be cleared when the winners-bracket champion
+    -- wins the grand final.
     if old.athlete_a_id is not null and new.athlete_a_id is null
        and not exists (
          select 1 from public.matches source
           where source.bracket_id = old.bracket_id
             and (
-              (source.next_match_id = old.id
-               and source.next_slot = 'athlete_a_id'
-               and source.winner_id = old.athlete_a_id)
+              (source.next_match_id = old.id and source.next_slot = 'athlete_a_id'
+               and exists (
+                 select 1 from public.match_change_log log
+                  where log.match_id = source.id and log.action = 'UPDATE'
+                    and log.old_data->>'winner_id' = old.athlete_a_id::text
+                    and log.new_data->>'winner_id' is distinct from old.athlete_a_id::text
+                    and log.changed_at = (select max(last_log.changed_at)
+                                            from public.match_change_log last_log
+                                           where last_log.match_id = source.id)
+               ))
               or
-              (source.loser_next_match_id = old.id
-               and source.loser_next_slot = 'athlete_a_id'
-               and source.winner_id is not null
-               and (case when source.winner_id = source.athlete_a_id
-                         then source.athlete_b_id else source.athlete_a_id end) = old.athlete_a_id)
+              (source.loser_next_match_id = old.id and source.loser_next_slot = 'athlete_a_id'
+               and exists (
+                 select 1 from public.match_change_log log
+                  where log.match_id = source.id and log.action = 'UPDATE'
+                    and (case when log.old_data->>'winner_id' = log.old_data->>'athlete_a_id'
+                              then log.old_data->>'athlete_b_id' else log.old_data->>'athlete_a_id' end) = old.athlete_a_id::text
+                    and log.new_data->>'winner_id' is distinct from log.old_data->>'winner_id'
+                    and log.changed_at = (select max(last_log.changed_at)
+                                            from public.match_change_log last_log
+                                           where last_log.match_id = source.id)
+               ))
               or
               (old.bracket_side = 'reset_final'
                and source.bracket_side = 'grand_final'
@@ -257,15 +270,28 @@ begin
          select 1 from public.matches source
           where source.bracket_id = old.bracket_id
             and (
-              (source.next_match_id = old.id
-               and source.next_slot = 'athlete_b_id'
-               and source.winner_id = old.athlete_b_id)
+              (source.next_match_id = old.id and source.next_slot = 'athlete_b_id'
+               and exists (
+                 select 1 from public.match_change_log log
+                  where log.match_id = source.id and log.action = 'UPDATE'
+                    and log.old_data->>'winner_id' = old.athlete_b_id::text
+                    and log.new_data->>'winner_id' is distinct from old.athlete_b_id::text
+                    and log.changed_at = (select max(last_log.changed_at)
+                                            from public.match_change_log last_log
+                                           where last_log.match_id = source.id)
+               ))
               or
-              (source.loser_next_match_id = old.id
-               and source.loser_next_slot = 'athlete_b_id'
-               and source.winner_id is not null
-               and (case when source.winner_id = source.athlete_a_id
-                         then source.athlete_b_id else source.athlete_a_id end) = old.athlete_b_id)
+              (source.loser_next_match_id = old.id and source.loser_next_slot = 'athlete_b_id'
+               and exists (
+                 select 1 from public.match_change_log log
+                  where log.match_id = source.id and log.action = 'UPDATE'
+                    and (case when log.old_data->>'winner_id' = log.old_data->>'athlete_a_id'
+                              then log.old_data->>'athlete_b_id' else log.old_data->>'athlete_a_id' end) = old.athlete_b_id::text
+                    and log.new_data->>'winner_id' is distinct from log.old_data->>'winner_id'
+                    and log.changed_at = (select max(last_log.changed_at)
+                                            from public.match_change_log last_log
+                                           where last_log.match_id = source.id)
+               ))
               or
               (old.bracket_side = 'reset_final'
                and source.bracket_side = 'grand_final'
