@@ -6,7 +6,7 @@
 |---|---|
 | SUPER_ADMIN, ADMIN, ORGANIZER, SECRETARY | Competition administration: clubs, athletes, registrations, weigh-ins, categories, brackets and match structure/results |
 | WEIGH_IN_OPERATOR | Create and update weigh-in records only |
-| CHIEF_JUDGE, JUDGE | Update match score, winner, status and penalties. Participant slots may only be populated by validated upstream match progression; judges cannot manually edit participants, bracket structure or match links. |
+| CHIEF_JUDGE, JUDGE | Update match score, winner, status and penalties. Participant slots may only be populated by validated upstream match progression; clearing a slot requires an audited feeder-result correction (or the valid grand-final reset-final cancellation). Judges cannot manually edit participants, bracket structure or match links. |
 | OBSERVER | Read-only access |
 
 All authenticated roles retain read access to the operational tables. Public/anonymous access is not granted by these policies.
@@ -25,3 +25,11 @@ The migration changes policies and a trigger/function only. It does not delete o
 ## CI
 
 The CI workflow runs the TypeScript/Vite production build for pull requests into `main` and pushes to security branches. GitHub Pages deployment remains attached to `main` only.
+
+
+## Additional database safeguards in 016
+
+- `match_change_log` is append-only for application users: authenticated users retain SELECT, but direct INSERT/UPDATE/DELETE privileges are revoked. The match trigger writes audit records through a fixed-search-path SECURITY DEFINER function.
+- `record_match_violation` excludes `WEIGH_IN_OPERATOR`; only competition managers and judges may record match fouls/remarks.
+- Judge slot clearing is not authorized merely because a slot currently contains a linked participant. For ordinary feeder links, the latest audit event for that feeder must show its result changed away from the occupant. A reset-final slot can be cleared when the grand-final winner is the winners-bracket champion.
+- Before production rollout, explicitly test both directions of result correction in single- and double-elimination brackets, automatic byes, loser-bracket advancement, and both grand-final outcomes. Verify the audit log records each change and cannot be forged through the authenticated API.
