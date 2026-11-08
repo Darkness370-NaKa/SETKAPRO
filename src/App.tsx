@@ -19,7 +19,7 @@ export default function App() {
   const [user, setUser] = useState<SessionUser | null>(null);
   const [role, setRole] = useState<AppRole>("OBSERVER");
   const [loading, setLoading] = useState(true);
-  const [mode, setMode] = useState<"login" | "signup" | "reset">("login");
+  const [mode, setMode] = useState<"login" | "signup" | "reset" | "update-password">("login");
   const [message, setMessage] = useState("");
   const backupInputRef = useRef<HTMLInputElement | null>(null);
   const [editorBracketId, setEditorBracketId] = useState<string | null>(() => new URLSearchParams(window.location.search).get("bracket"));
@@ -48,7 +48,7 @@ export default function App() {
   useEffect(() => {
     if (!supabase) { setLoading(false); return; }
     supabase.auth.getSession().then(({ data }) => setUser(data.session?.user ?? null)).finally(() => setLoading(false));
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => setUser(session?.user ?? null));
+    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => { setUser(session?.user ?? null); if (event === "PASSWORD_RECOVERY") { setMode("update-password"); setMessage("Введите новый пароль для своего аккаунта."); } });
     return () => listener.subscription.unsubscribe();
   }, []);
 
@@ -106,6 +106,18 @@ export default function App() {
     } else if (mode === "reset") {
       ({ error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: new URL(import.meta.env.BASE_URL, window.location.origin).toString() }));
       if (!error) setMessage("Если адрес зарегистрирован, на него придёт письмо для сброса пароля.");
+    } else if (mode === "update-password") {
+      const confirmation = String(fd.get("confirm_password") || "");
+      if (password.length < 8 || password !== confirmation) {
+        setMessage(password.length < 8 ? "Новый пароль должен содержать не менее 8 символов." : "Пароли не совпадают.");
+        setBusy(false);
+        return;
+      }
+      ({ error } = await supabase.auth.updateUser({ password }));
+      if (!error) {
+        setMessage("Пароль обновлён. Теперь можно продолжить работу.");
+        setMode("login");
+      }
     } else {
       ({ error } = await supabase.auth.signInWithPassword({ email, password }));
     }
@@ -274,6 +286,7 @@ export default function App() {
 
   if (loading) return <div className="center"><div className="loader" />Загрузка SETKA PRO…</div>;
   if (!isSupabaseConfigured || !supabase) return <SetupScreen />;
+  if (mode === "update-password") return <AuthScreen mode={mode} setMode={setMode} onSubmit={authSubmit} busy={busy} message={message} />;
   if (!user) return <AuthScreen mode={mode} setMode={setMode} onSubmit={authSubmit} busy={busy} message={message} />;
   if (editorBracketId) return <BracketBuilder client={supabase} canEdit={canJudgeMatches} canManage={canManageCompetition} onMessage={setMessage} initialBracketId={editorBracketId} onExit={() => { window.history.pushState({}, "", window.location.pathname); setEditorBracketId(null); setTab("brackets"); }} />;
 
@@ -380,9 +393,10 @@ function Status({status}:{status:string}) {
   return <span className={`status ${status}`}>{label}</span>;
 }
 function Empty({title,text}:{title:string;text:string}) { return <div className="empty"><div className="empty-icon"><ClipboardList size={22}/></div><b>{title}</b><p>{text}</p></div>; }
-function AuthScreen({mode,setMode,onSubmit,busy,message}:{mode:"login"|"signup"|"reset";setMode:(m:"login"|"signup"|"reset")=>void;onSubmit:(e:FormEvent<HTMLFormElement>)=>void;busy:boolean;message:string}) {
-  return <div className="auth-page"><div className="auth-visual"><div className="brand"><img className="brand-mark" src="./arm-msk37-original.jpg" alt="АРМ МСК 37"/><div><b>SETKA <span>PRO</span></b><small>ARM WRESTLING MANAGEMENT</small></div></div><div className="visual-copy"><div className="eyebrow">ЕДИНАЯ СИСТЕМА ТУРНИРОВ</div><h1>СИЛА.<br/><em>ТОЧНОСТЬ.</em><br/>РЕЗУЛЬТАТ.</h1><p>Регистрация спортсменов, организация соревнований и управление турнирами в одной системе.</p></div><div className="visual-foot">SETKA PRO · TOURNAMENT PLATFORM</div></div><div className="auth-side"><form className="auth-card" onSubmit={onSubmit}><div className="eyebrow">ЛИЧНЫЙ КАБИНЕТ</div><h2>{mode === "signup" ? "Создать аккаунт" : mode === "reset" ? "Сброс пароля" : "С возвращением"}</h2><p>{mode === "signup" ? "После регистрации вам будет назначена роль наблюдателя." : "Войдите, чтобы продолжить работу с турнирами."}</p><label>Email<input name="email" type="email" required placeholder="name@example.com"/></label>{mode !== "reset" && <label>Пароль<input name="password" type="password" minLength={8} required placeholder="Не менее 8 символов"/></label>}{message && <div className="notice">{message}</div>}<button className="primary wide" disabled={busy}>{busy ? "Подождите…" : mode === "signup" ? "Зарегистрироваться" : mode === "reset" ? "Отправить ссылку" : "Войти"} <ArrowRight size={17}/></button><div className="auth-links">{mode !== "login" && <button type="button" onClick={() => setMode("login")}>Ко входу</button>}{mode === "login" && <><button type="button" onClick={() => setMode("signup")}>Создать аккаунт</button><button type="button" onClick={() => setMode("reset")}>Забыли пароль?</button></>}</div></form></div></div>;
+function AuthScreen({mode,setMode,onSubmit,busy,message}:{mode:"login"|"signup"|"reset"|"update-password";setMode:(m:"login"|"signup"|"reset"|"update-password")=>void;onSubmit:(e:FormEvent<HTMLFormElement>)=>void;busy:boolean;message:string}) {
+  const recovery = mode === "update-password";
+  return <div className="auth-page"><div className="auth-visual"><div className="brand"><img className="brand-mark" src="./arm-msk37-original.jpg" alt="АРМ МСК 37"/><div><b>SETKA <span>PRO</span></b><small>ARM WRESTLING MANAGEMENT</small></div></div><div className="visual-copy"><div className="eyebrow">ЕДИНАЯ СИСТЕМА ТУРНИРОВ</div><h1>СИЛА.<br/><em>ТОЧНОСТЬ.</em><br/>РЕЗУЛЬТАТ.</h1><p>Регистрация спортсменов, организация соревнований и управление турнирами в одной системе.</p></div><div className="visual-foot">SETKA PRO · TOURNAMENT PLATFORM</div></div><div className="auth-side"><form className="auth-card" onSubmit={onSubmit}><div className="eyebrow">ЛИЧНЫЙ КАБИНЕТ</div><h2>{recovery ? "Новый пароль" : mode === "signup" ? "Создать аккаунт" : mode === "reset" ? "Сброс пароля" : "С возвращением"}</h2><p>{recovery ? "Придумайте новый пароль для своего аккаунта." : mode === "signup" ? "После регистрации вам будет назначена роль наблюдателя." : mode === "reset" ? "Укажите email, на который отправить ссылку для восстановления." : "Войдите, чтобы продолжить работу с турнирами."}</p>{!recovery && <label>Email<input name="email" type="email" required placeholder="name@example.com"/></label>}{mode !== "reset" && <label>{recovery ? "Новый пароль" : "Пароль"}<input name="password" type="password" minLength={8} required placeholder="Не менее 8 символов" autoComplete={recovery ? "new-password" : mode === "login" ? "current-password" : "new-password"}/></label>}{recovery && <label>Повторите новый пароль<input name="confirm_password" type="password" minLength={8} required placeholder="Повторите пароль" autoComplete="new-password"/></label>}{message && <div className="notice" role="status">{message}</div>}<button className="primary wide" disabled={busy}>{busy ? "Подождите…" : recovery ? "Сохранить новый пароль" : mode === "signup" ? "Зарегистрироваться" : mode === "reset" ? "Отправить ссылку" : "Войти"} <ArrowRight size={17}/></button><div className="auth-links">{mode !== "login" && !recovery && <button type="button" onClick={() => setMode("login")}>Ко входу</button>}{mode === "login" && <><button type="button" onClick={() => setMode("signup")}>Создать аккаунт</button><button type="button" onClick={() => setMode("reset")}>Забыли пароль?</button></>}</div></form></div></div>;
 }
 function SetupScreen() {
-  return <div className="setup-page"><div className="brand"><img className="brand-mark" src="./arm-msk37-original.jpg" alt="АРМ МСК 37"/><div><b>SETKA <span>PRO</span></b><small>ARM WRESTLING MANAGEMENT</small></div></div><div className="setup-card"><div className="setup-icon"><ShieldCheck size={25}/></div><div className="eyebrow">ПОДКЛЮЧЕНИЕ БАЗЫ ДАННЫХ</div><h1>Подключим Supabase</h1><p>Приложение подготовлено. Чтобы включить регистрацию и общую базу, создайте проект Supabase и добавьте его URL и публичный ключ в файл <code>.env</code>.</p><ol><li>Создайте проект на <b>supabase.com</b>.</li><li>В SQL Editor выполните файл <code>supabase/migrations/001_initial_schema.sql</code>.</li><li>Скопируйте Project URL и publishable/anon key в <code>.env</code> по примеру <code>.env.example</code>.</li><li>Запустите <code>npm install</code>, затем <code>npm run dev</code>.</li></ol><div className="notice">Не вставляйте secret или service_role key в браузерный проект.</div></div></div>;
+  return <div className="setup-page"><div className="brand"><img className="brand-mark" src="./arm-msk37-original.jpg" alt="АРМ МСК 37"/><div><b>SETKA <span>PRO</span></b><small>ARM WRESTLING MANAGEMENT</small></div></div><div className="setup-card"><div className="setup-icon"><ShieldCheck size={25}/></div><div className="eyebrow">ПОДКЛЮЧЕНИЕ БАЗЫ ДАННЫХ</div><h1>Подключим Supabase</h1><p>Приложение подготовлено. Чтобы включить регистрацию и общую базу, создайте проект Supabase и добавьте его URL и публичный ключ в файл <code>.env</code>.</p><ol><li>Создайте проект на <b>supabase.com</b>.</li><li>Примените миграции 001–015 по порядку, затем <code>supabase/manual/016_role_based_access_control.sql</code> и миграцию <code>017_validate_match_integrity.sql</code>. Для уже существующей базы не запускайте старые скрипты повторно — сверьте историю миграций и схему с README.</li><li>Скопируйте Project URL и publishable/anon key в <code>.env</code> по примеру <code>.env.example</code>.</li><li>Запустите <code>npm install</code>, затем <code>npm run dev</code>.</li></ol><div className="notice">Не вставляйте secret или service_role key в браузерный проект.</div></div></div>;
 }
