@@ -23,7 +23,7 @@ export default function App() {
   const [message, setMessage] = useState("");
   const backupInputRef = useRef<HTMLInputElement | null>(null);
   const [editorBracketId, setEditorBracketId] = useState<string | null>(() => new URLSearchParams(window.location.search).get("bracket"));
-  const [tab, setTab] = useState<"tournaments" | "apply" | "applications" | "admin" | "users" | "athletes" | "clubs" | "registration" | "weighin" | "categories" | "brackets">("tournaments");
+  const [tab, setTab] = useState<"tournaments" | "apply" | "applications" | "admin" | "users" | "athletes" | "clubs" | "registration" | "weighin" | "categories" | "brackets" | "design">("tournaments");
   const [design, setDesign] = useState<DesignSettings>(() => {
     try { return { ...defaultDesign, ...JSON.parse(window.localStorage.getItem("setka-pro-design") || "{}") }; }
     catch { return defaultDesign; }
