@@ -14,8 +14,8 @@ begin
       using errcode = '23514';
   end if;
 
-  if new.score_a is not null and new.score_a < 0
-     or new.score_b is not null and new.score_b < 0 then
+  if (new.score_a is not null and new.score_a < 0)
+     or (new.score_b is not null and new.score_b < 0) then
     raise exception 'Счёт матча не может быть отрицательным'
       using errcode = '23514';
   end if;
