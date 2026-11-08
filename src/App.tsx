@@ -1,11 +1,13 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
-import { Activity, ArrowRight, CheckCircle2, ClipboardList, Download, Pencil, LogOut, Plus, ShieldCheck, Trophy, UserRound, Users } from "lucide-react";
+import { Activity, ArrowRight, CheckCircle2, ClipboardList, Download, Pencil, LogOut, Plus, ShieldCheck, Trophy, UserRound, Users, Palette } from "lucide-react";
 import { isSupabaseConfigured, supabase } from "./supabase";
 import type { AppRole, ParticipationApplication, Tournament } from "./types";
 import Management from "./Management";
 import BracketBuilder from "./BracketBuilder";
 
 type SessionUser = { id: string; email?: string };
+type DesignSettings = { theme: "dark" | "light" | "system"; accent: string; density: "compact" | "comfortable"; textSize: "normal" | "large" };
+const defaultDesign: DesignSettings = { theme: "dark", accent: "#c5c5bd", density: "comfortable", textSize: "normal" };
 type ManagedUser = { user_id: string; email: string | null; full_name: string | null; role: AppRole; created_at: string };
 const roleNames: Record<AppRole, string> = {
   SUPER_ADMIN: "Суперадминистратор", ADMIN: "Администратор", ORGANIZER: "Организатор",
@@ -22,6 +24,19 @@ export default function App() {
   const backupInputRef = useRef<HTMLInputElement | null>(null);
   const [editorBracketId, setEditorBracketId] = useState<string | null>(() => new URLSearchParams(window.location.search).get("bracket"));
   const [tab, setTab] = useState<"tournaments" | "apply" | "applications" | "admin" | "users" | "athletes" | "clubs" | "registration" | "weighin" | "categories" | "brackets">("tournaments");
+  const [design, setDesign] = useState<DesignSettings>(() => {
+    try { return { ...defaultDesign, ...JSON.parse(window.localStorage.getItem("setka-pro-design") || "{}") }; }
+    catch { return defaultDesign; }
+  });
+
+  useEffect(() => {
+    const root = document.documentElement;
+    root.dataset.theme = design.theme;
+    root.dataset.density = design.density;
+    root.dataset.textSize = design.textSize;
+    root.style.setProperty("--user-accent", design.accent);
+    window.localStorage.setItem("setka-pro-design", JSON.stringify(design));
+  }, [design]);
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
   const [applications, setApplications] = useState<ParticipationApplication[]>([]);
   const [selectedTournament, setSelectedTournament] = useState("");
@@ -273,6 +288,7 @@ export default function App() {
     { id: "weighin", label: "Взвешивание", icon: Activity },
     { id: "categories", label: "Весовые категории", icon: Trophy },
     { id: "brackets", label: "Сетки и результаты", icon: CheckCircle2 },
+    { id: "design", label: "Настройки дизайна", icon: Palette },
     ...(isSuperAdmin ? [{ id: "users", label: "Пользователи и роли", icon: ShieldCheck }] : [])
   ] as const;
 
@@ -284,12 +300,30 @@ export default function App() {
     <div className="layout">
       <aside className="sidebar">
         <div className="side-caption">РАБОЧАЯ ОБЛАСТЬ</div>
-        {nav.map(item => <button key={item.id} className={`nav-item ${tab === item.id ? "active" : ""}`} onClick={() => setTab(item.id as "tournaments" | "apply" | "applications" | "admin" | "users" | "athletes" | "clubs" | "registration" | "weighin" | "categories" | "brackets")}><item.icon size={18}/>{item.label}</button>)}
+        {nav.map(item => <button key={item.id} className={`nav-item ${tab === item.id ? "active" : ""}`} onClick={() => setTab(item.id as "tournaments" | "apply" | "applications" | "admin" | "users" | "athletes" | "clubs" | "registration" | "weighin" | "categories" | "brackets" | "design")}><item.icon size={18}/>{item.label}</button>)}
         <div className="side-foot"><ShieldCheck size={16}/> Доступ определяется серверными ролями</div>
       </aside>
       <main className="main">
         <div className="page-head"><div><div className="eyebrow">ПАНЕЛЬ УПРАВЛЕНИЯ</div><h1>{nav.find(x => x.id === tab)?.label ?? "SETKA PRO"}</h1></div><div className="live-pill"><Activity size={14}/> SUPABASE CONNECTED</div></div>
         {message && <div className="notice" role="status">{message}<button onClick={() => setMessage("")}>×</button></div>}
+        {tab === "design" && <section className="panel design-settings">
+          <div className="section-title"><div><h2>Настройки дизайна</h2><p>Персональное оформление SETKA PRO. Настройки сохраняются в этом браузере.</p></div><button className="secondary" onClick={() => setDesign(defaultDesign)}>Сбросить</button></div>
+          <div className="design-setting-group"><h3>Тема интерфейса</h3><div className="design-options">
+            {([{value:"dark",label:"Тёмная"},{value:"light",label:"Светлая"},{value:"system",label:"Как в системе"}] as const).map(option=><button key={option.value} className={design.theme===option.value?"design-choice selected":"design-choice"} onClick={()=>setDesign(v=>({...v,theme:option.value}))}>{option.label}</button>)}
+          </div></div>
+          <div className="design-setting-group"><h3>Акцентный цвет</h3><p>Цвет кнопок, выделений и активных элементов.</p><div className="design-colors">
+            {[{name:"Серебристый",value:"#c5c5bd"},{name:"Синий",value:"#4388df"},{name:"Золотой",value:"#c58b3c"},{name:"Красный",value:"#d84a55"},{name:"Зелёный",value:"#35a879"},{name:"Фиолетовый",value:"#9270d5"}].map(color=><button key={color.value} title={color.name} aria-label={color.name} aria-pressed={design.accent===color.value} className={design.accent===color.value?"design-color selected":"design-color"} style={{"--swatch":color.value} as React.CSSProperties} onClick={()=>setDesign(v=>({...v,accent:color.value}))}/>)}
+          </div></div>
+          <div className="design-setting-group"><h3>Плотность интерфейса</h3><div className="design-options">
+            <button className={design.density==="comfortable"?"design-choice selected":"design-choice"} onClick={()=>setDesign(v=>({...v,density:"comfortable"}))}>Просторная</button>
+            <button className={design.density==="compact"?"design-choice selected":"design-choice"} onClick={()=>setDesign(v=>({...v,density:"compact"}))}>Компактная</button>
+          </div></div>
+          <div className="design-setting-group"><h3>Размер текста</h3><div className="design-options">
+            <button className={design.textSize==="normal"?"design-choice selected":"design-choice"} onClick={()=>setDesign(v=>({...v,textSize:"normal"}))}>Обычный</button>
+            <button className={design.textSize==="large"?"design-choice selected":"design-choice"} onClick={()=>setDesign(v=>({...v,textSize:"large"}))}>Увеличенный</button>
+          </div></div>
+          <div className="design-preview"><span className="eyebrow">ПРЕДПРОСМОТР</span><div className="design-preview-row"><b>SETKA PRO</b><span className="tag">ПРИМЕР</span><button className="primary">Кнопка</button></div></div>
+        </section>}
         {tab === "tournaments" && <>
           <section className="panel">
             <div className="section-title"><div><h2>Турниры</h2><p>Создавайте соревнования и управляйте их публикацией.</p></div>
