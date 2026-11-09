@@ -75,7 +75,7 @@ export function QrApprovalScreen({ client, token }: { client: SupabaseClient; to
   const [message, setMessage] = useState("");
   const [done, setDone] = useState(false);
   const [userEmail, setUserEmail] = useState("");
-  useEffect(() => { void client.auth.getUser().then(({ data }) => setUserEmail(data.user?.email || "")); }, [client]);
+  useEffect(() => { void client.auth.getUser().then(({ data }) => setUserEmail(data.user?.email || "")); const url = new URL(window.location.href); url.searchParams.delete("qr_login"); window.history.replaceState({}, "", url.toString()); }, [client]);
   const [requestId, qrToken] = token.split(".", 2);
   async function approve() {
     if (!requestId || !qrToken || busy) return;
