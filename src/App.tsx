@@ -1,10 +1,11 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
-import { Activity, ArrowRight, CheckCircle2, ClipboardList, Download, Pencil, LogOut, Plus, ShieldCheck, Trophy, UserRound, Users, Palette } from "lucide-react";
+import { Activity, ArrowRight, CheckCircle2, ClipboardList, Download, Pencil, LogOut, Plus, ShieldCheck, Trophy, UserRound, Users, Palette, ScanLine } from "lucide-react";
 import { isSupabaseConfigured, supabase } from "./supabase";
 import type { AppRole, ParticipationApplication, Tournament } from "./types";
 import Management from "./Management";
 import BracketBuilder from "./BracketBuilder";
 import { QrApprovalScreen, QrLoginPanel } from "./QrLogin";
+import QrScanner from "./QrScanner";
 
 type SessionUser = { id: string; email?: string };
 type DesignSettings = { theme: "dark" | "light" | "system"; accent: string; density: "compact" | "comfortable"; textSize: "normal" | "large" };
@@ -25,7 +26,7 @@ export default function App() {
   const [qrApprovalToken] = useState(() => new URLSearchParams(window.location.search).get("qr_login"));
   const backupInputRef = useRef<HTMLInputElement | null>(null);
   const [editorBracketId, setEditorBracketId] = useState<string | null>(() => new URLSearchParams(window.location.search).get("bracket"));
-  const [tab, setTab] = useState<"tournaments" | "apply" | "applications" | "admin" | "users" | "athletes" | "clubs" | "registration" | "weighin" | "categories" | "brackets" | "design">("tournaments");
+  const [tab, setTab] = useState<"tournaments" | "apply" | "applications" | "admin" | "users" | "athletes" | "clubs" | "registration" | "weighin" | "categories" | "brackets" | "design" | "qr">("tournaments");
   const [design, setDesign] = useState<DesignSettings>(() => {
     try { return { ...defaultDesign, ...JSON.parse(window.localStorage.getItem("setka-pro-design") || "{}") }; }
     catch { return defaultDesign; }
@@ -308,6 +309,7 @@ export default function App() {
     { id: "categories", label: "Весовые категории", icon: Trophy },
     { id: "brackets", label: "Сетки и результаты", icon: CheckCircle2 },
     { id: "design", label: "Настройки дизайна", icon: Palette },
+    { id: "qr", label: "QR-сканер", icon: ScanLine },
     ...(isSuperAdmin ? [{ id: "users", label: "Пользователи и роли", icon: ShieldCheck }] : [])
   ] as const;
 
@@ -325,6 +327,7 @@ export default function App() {
       <main className="main">
         <div className="page-head"><div><div className="eyebrow">ПАНЕЛЬ УПРАВЛЕНИЯ</div><h1>{nav.find(x => x.id === tab)?.label ?? "SETKA PRO"}</h1></div><div className="live-pill"><Activity size={14}/> SUPABASE CONNECTED</div></div>
         {message && <div className="notice" role="status">{message}<button onClick={() => setMessage("")}>×</button></div>}
+        {tab === "qr" && <QrScanner />}
         {tab === "design" && <section className="panel design-settings">
           <div className="section-title"><div><h2>Настройки дизайна</h2><p>Персональное оформление SETKA PRO. Настройки сохраняются в этом браузере.</p></div><button className="secondary" onClick={() => setDesign(defaultDesign)}>Сбросить</button></div>
           <div className="design-setting-group"><h3>Тема интерфейса</h3><div className="design-options">
