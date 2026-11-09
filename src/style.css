@@ -687,3 +687,21 @@ input:focus,select:focus,textarea:focus{
 @media(prefers-reduced-motion:reduce){
   .match-node,.bracket-editor-page .application-row,.canvas-tool-group .secondary{transition:none}
 }
+
+/* Secure QR sign-in */
+.qr-login{width:min(390px,100%);margin:18px auto 0;text-align:center}
+.qr-login-divider{display:flex;align-items:center;gap:12px;color:#858b87;font-size:9px;letter-spacing:2px;margin:13px 0}
+.qr-login-divider:before,.qr-login-divider:after{content:"";height:1px;background:#454947;flex:1}
+.qr-open{width:100%;justify-content:center;min-height:44px}
+.qr-login-card{margin-top:14px;padding:17px;background:#151817;border:1px solid #555b57;text-align:center}
+.qr-login-card img{display:block;width:220px;height:220px;max-width:100%;margin:0 auto 12px;padding:7px;background:#fff}
+.qr-login-card>b{display:block;font:600 17px Oswald,sans-serif;text-transform:uppercase;letter-spacing:.7px}
+.qr-login-card p{font-size:11px;color:#aeb4af;line-height:1.6}
+.qr-login-card>span{display:inline-flex;align-items:center;gap:7px;color:#c4c9c4;font-size:10px;margin:5px 0 10px}
+.qr-pulse{width:7px;height:7px;border-radius:50%;background:#cdd2cc;box-shadow:0 0 8px #cdd2cc}
+.qr-login-card .text-btn{margin:4px auto}
+.qr-approval-page .auth-card{padding:25px;background:#121515;border:1px solid #4b514d}
+.qr-account{display:flex;align-items:center;gap:10px;padding:13px;margin:18px 0;background:#202522;border:1px solid #4d544f;color:#e3e6e2;overflow-wrap:anywhere}
+.qr-account svg{flex:0 0 auto}
+.qr-cancel{margin:18px auto 0}
+@media(max-width:760px){.qr-approval-page .auth-visual{min-height:240px}.qr-approval-page .auth-card{padding:20px}}
