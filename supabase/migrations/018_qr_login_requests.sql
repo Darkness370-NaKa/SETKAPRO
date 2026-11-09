@@ -5,7 +5,7 @@ create table if not exists public.qr_login_requests (
   auth_token_hash text,
   user_id uuid references auth.users(id) on delete cascade,
   approved_email text,
-  status text not null default 'pending' check (status in ('pending','approved','consumed')),
+  status text not null default 'pending' check (status in ('pending','approving','approved','consumed')),
   created_at timestamptz not null default now(),
   expires_at timestamptz not null,
   approved_at timestamptz
